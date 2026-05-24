@@ -124,7 +124,7 @@ class MenuScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         btnHelp.on('pointerdown', () => {
-            alert("Controles: Flechas para moverte, Espacio para saltar y Z para ladrar.");
+            alert("Controles: Flechas para moverte, Espacio para saltar y Z para ladrar. Zoom Recomendado de pantalla 80% para mejor experiencia visual. ¡Diviértete jugando!");
         });
 
         // 4. CREDITS
