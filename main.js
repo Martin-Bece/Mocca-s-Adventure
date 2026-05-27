@@ -243,21 +243,21 @@ class Level1 extends Phaser.Scene {
         this.anims.create({ key: "huesito_rotate", frames: this.anims.generateFrameNumbers("huesito", { start: 0, end: 4 }), frameRate: 7, repeat: -1 });
         this.anims.create({ key: "gato_run", frames: this.anims.generateFrameNumbers("gato", { start: 0, end: 5 }), frameRate: 7, repeat: -1 });
 
-        // Diseño automatizado y fluido que cubre de 400 a 10400 metros (Última parte libre)
+        // Diseño automatizado y fluido de 400 a 10400 metros
         const diseñoNivel = [];
         let proximoX = 400;
         let alternarAltura = 0;
 
         while (proximoX < 10400) {
-            let bloquesIsla = Math.floor(Math.random() * 2) + 1; // Islas de 1 o 2 bloques
-            let alturaY = height - 130; // Altura estándar baja
+            let bloquesIsla = Math.floor(Math.random() * 2) + 1;
+            let alturaY = height - 130;
 
             if (alternarAltura === 1) alturaY = height - 220;
             if (alternarAltura === 2) alturaY = height - 310;
 
             diseñoNivel.push({ x: proximoX, y: alturaY, bloques: bloquesIsla });
 
-            proximoX += Math.floor(Math.random() * 80) + 260; // Distancia horizontal testeada para saltos cómodos
+            proximoX += Math.floor(Math.random() * 80) + 260; 
             alternarAltura = (alternarAltura + 1) % 3;
         }
 
@@ -285,7 +285,7 @@ class Level1 extends Phaser.Scene {
             }
         });
 
-        // --- ENEMIGOS EN EL SUELO COMPLETAMENTE REPARTIDOS (Hasta la zona libre final) ---
+        // --- ENEMIGOS EN EL SUELO COMPLETAMENTE REPARTIDOS ---
         for (let posX = 600; posX < 10300; posX += 450) {
             let gatoSuelo = this.gatos.create(posX, height - 150, "gato").setScale(1.5);
             gatoSuelo.body.setSize(35, 22);
@@ -309,10 +309,22 @@ class Level1 extends Phaser.Scene {
 
         this.physics.add.collider(this.mocca, this.ground);
         
-        // Asignamos el colisionador con las nubes a una variable para interactuar en el update
-        this.platformCollider = this.physics.add.collider(this.mocca, this.platforms);
-        this.mocca.setCollideWorldBounds(true);
+        // --- COLISIONADOR DINÁMICO DE NUBES (CON PROCESS CALLBACK) ---
+        this.platformCollider = this.physics.add.collider(
+            this.mocca, 
+            this.platforms, 
+            null, 
+            (player, platform) => {
+                // Si se presiona la flecha de abajo, desactiva dinámicamente el choque en este frame
+                if (this.cursors.down.isDown) {
+                    return false;
+                }
+                return true;
+            }, 
+            this
+        );
 
+        this.mocca.setCollideWorldBounds(true);
         this.cursors = this.input.keyboard.createCursorKeys();
 
         // Animaciones
@@ -342,7 +354,6 @@ class Level1 extends Phaser.Scene {
         });
 
         this.physics.add.overlap(this.mocca, bones, this.collectBone, null, this);
-
         this.physics.add.collider(this.gatos, this.ground);
         this.physics.add.overlap(this.mocca, this.gatos, this.hitGato, null, this);
 
@@ -424,17 +435,7 @@ class Level1 extends Phaser.Scene {
 
         if (this.isRebounding || this.isbarking || this.isPaused) return;
 
-        // --- NUEVA MECÁNICA: BAJARSE DE LAS NUBES CON FLECHA ABAJO ---
-        // body.touching.down asegura que Mocca esté efectivamente parada sobre la nube
-        // !body.onFloor() nos re asegura que NO esté en el piso principal
-        if (this.cursors.down.isDown && this.mocca.body.touching.down && !this.mocca.body.onFloor()) {
-            this.mocca.body.checkCollision.none = true;
-            
-            this.time.delayedCall(250, () => {
-                this.mocca.body.checkCollision.none = false;
-            });
-        }
-
+        // --- SISTEMA DE LADRIDO ---
         if (Phaser.Input.Keyboard.JustDown(this.keyZ)) {
             this.isbarking = true;
             this.sound.play("bark_sound", { volume: 0.2 });
@@ -451,6 +452,7 @@ class Level1 extends Phaser.Scene {
             return;
         }
 
+        // --- MOVIMIENTO HORIZONTAL ---
         if (this.cursors.left.isDown) {
             this.mocca.setVelocityX(-this.PLAYER_SPEED);
             this.mocca.setFlipX(true);
@@ -464,7 +466,7 @@ class Level1 extends Phaser.Scene {
             if (this.mocca.body.onFloor() || this.mocca.body.touching.down) this.mocca.anims.play("idle", true);
         }
 
-        // Saltar funciona tanto desde el piso como desde las nubes
+        // --- SALTO ---
         if (this.cursors.space.isDown && (this.mocca.body.onFloor() || this.mocca.body.touching.down)) {
             this.mocca.setVelocityY(this.JUMP_VELOCITY);
             this.mocca.anims.play("jump", true);
