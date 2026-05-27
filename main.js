@@ -14,7 +14,7 @@ class AudioManager {
 
     static getInstance() {
         if (!AudioManager.instance) {
-            AudioManager.instance = new AudioManager();
+            return AudioManager.instance = new AudioManager();
         }
         return AudioManager.instance;
     }
@@ -54,7 +54,7 @@ const audioManager = AudioManager.getInstance();
 
 
 // ============================================================================
-// --- ESCENA: MENÚ PRINCIPAL (CORREGIDA CON EFECTO COVER Y ESCALAS CHICAS) ---
+// --- ESCENA: MENÚ PRINCIPAL (100% ADAPTATIVO CON EFECTO COVER Y ESCALA CHICA) ---
 // ============================================================================
 class MenuScene extends Phaser.Scene {
     constructor() {
@@ -79,29 +79,25 @@ class MenuScene extends Phaser.Scene {
         audioManager.init(this.game);
         audioManager.playMusic(this, 'level_1', { volume: 0.2, loop: true });
 
-        // --- EFECTO COVER CORREGIDO (NADA DE MOSAICOS O CORTES EN EL PASTO) ---
-        // Usamos una imagen común centrada para evitar el mosaico repetitivo del tileSprite
+        // --- EFECTO COVER: EL FONDO SE ADAPTA SIN MOSAICOS NI CORTES ---
         let fondo = this.add.image(width / 2, height / 2, 'background');
-        
-        // Calculamos la escala óptima para cubrir la pantalla manteniendo la proporción
         let escalaX = width / fondo.width;
         let escalaY = height / fondo.height;
         let escalaFondo = Math.max(escalaX, escalaY);
         fondo.setScale(escalaFondo);
 
-        // --- NUEVA ESCALA BASE CONTROLADA (Para evitar que los botones se vayan a lo gigante) ---
+        // --- ESCALA BASE PARA PANTALLAS (PROPORCIÓN CONTROLADA) ---
         const baseScale = height / 768; 
 
-        // --- LOGO PRINCIPAL (ACHICADO Y ESTILIZADO) ---
-        // Seteamos una escala menor (0.35) para que no ocupe toda la pantalla
+        // --- LOGO PRINCIPAL (TAMAÑO COMPACTO Y ESTILIZADO) ---
         let cartelTitulo = this.add.image(width / 2, height * 0.28, 'Imagen_Menu')
             .setOrigin(0.5)
             .setScale(0.35 * baseScale); 
 
-        // --- BOTONERA EN COLUMNA (MÁS CHICA Y PROPORCIONAL) ---
-        const escalaBotones = 0.5 * baseScale; // Se bajó de 0.65 a 0.5 para que se vean estéticos
-        const separacion = 48 * baseScale;    // Distancia justa entre cada botón
-        const baseBotonesY = height * 0.56;   // Punto de partida vertical
+        // --- BOTONERA EN COLUMNA ---
+        const escalaBotones = 0.5 * baseScale; 
+        const separacion = 48 * baseScale;    
+        const baseBotonesY = height * 0.56;   
 
         // 1. START
         let btnStart = this.add.image(width / 2, baseBotonesY, 'Start')
@@ -143,14 +139,13 @@ class MenuScene extends Phaser.Scene {
             alert("Desarrollado por Martín - ULP 2026");
         });
 
-        // Efectos de iluminación al pasar el mouse
+        // Efectos Hover (Iluminación)
         [btnStart, btnContinue, btnHelp, btnCredits].forEach(btn => {
             btn.on('pointerover', () => btn.setTint(0xffcc00));
             btn.on('pointerout', () => btn.clearTint());
         });
 
         // --- BOTÓN DE MUTEAR ---
-        // Ubicado de forma milimétrica arriba a la derecha sin importar la resolución
         let btnSonido = this.add.image(width - 40, 40, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
             .setOrigin(0.5)
             .setScale(0.35 * baseScale) 
@@ -165,20 +160,20 @@ class MenuScene extends Phaser.Scene {
         btnSonido.on('pointerover', () => btnSonido.setTint(0xffcc00));
         btnSonido.on('pointerout', () => btnSonido.clearTint());
 
-        // Manejador del cambio de tamaño de ventana
+        // Escucha del redimensionamiento de pantalla
         this.scale.on('resize', () => {
             this.scene.restart();
         });
     }
 
     update() {
-        // Dejamos este método vacío ya que al no usar tileSprite no hace falta desplazar la textura
+        // Sin movimiento de texturas en el menú plano
     }
 }
 
 
 // ============================================================================
-// --- ESCENA: NIVEL 1 ---
+// --- ESCENA: NIVEL 1 (FONDO CON TILESPRITE ADAPTATIVO CORREGIDO) ---
 // ============================================================================
 class Level1 extends Phaser.Scene {
     constructor() {
@@ -221,16 +216,25 @@ class Level1 extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
         
-        // El mundo físico mantiene su largo horizontal de 2400px, pero su alto se adapta a la pantalla
         this.physics.world.setBounds(0, 0, 2400, height);
-
         audioManager.playMusic(this, 'level_1', { volume: 0.2, loop: true });
 
-        // Fondo del nivel adaptado a toda la pantalla
-        this.fondoBosque = this.add.tileSprite(0, 0, width, height, 'background').setOrigin(0, 0);
-        this.fondoBosque.setScrollFactor(0);
+        // --- SOLUCIÓN TILESPRITE MATEMÁTICO ---
+        // Creamos el tileSprite ocupando TODO el tamaño dinámico de la pantalla
+        this.fondoBosque = this.add.tileSprite(0, 0, width, height, 'background');
+        this.fondoBosque.setOrigin(0, 0);
+        this.fondoBosque.setScrollFactor(0); // Fijo a la pantalla, lo moveremos de forma manual en el update()
 
-        // Suelo estático posicionado de manera relativa al fondo del alto de pantalla
+        // Ajustamos la escala interna de la textura para que cubra todo el alto sin repetirse en el eje Y
+        let texturaOriginal = this.textures.get('background').getSourceImage();
+        let escalaInternaY = height / texturaOriginal.height;
+        let escalaInternaX = width / texturaOriginal.width;
+        let factorEscalaFinal = Math.max(escalaInternaX, escalaInternaY);
+
+        this.fondoBosque.tileScaleX = factorEscalaFinal;
+        this.fondoBosque.tileScaleY = factorEscalaFinal;
+
+        // --- CAPA DE SUELO FÍSICO ---
         this.ground = this.physics.add.staticGroup();
         for (let x = 0; x < 2400; x += 128) {
             let tile = this.ground.create(x, height - 32, "ground").setScale(2).refreshBody();
@@ -251,7 +255,7 @@ class Level1 extends Phaser.Scene {
 
         this.cursors = this.input.keyboard.createCursorKeys();
 
-        // Animaciones
+        // Animaciones de Mocca
         this.anims.create({ key: "idle", frames: this.anims.generateFrameNumbers("mocca", { start: 0, end: 1 }), frameRate: 7, repeat: -1 });
         this.anims.create({ key: "run", frames: this.anims.generateFrameNumbers("mocca_run", { start: 0, end: 2 }), frameRate: 7, repeat: -1 });
         this.anims.create({ key: "jump", frames: this.anims.generateFrameNumbers("mocca_jump", { start: 0, end: 3 }), frameRate: 2, repeat: 0 });
@@ -302,17 +306,17 @@ class Level1 extends Phaser.Scene {
 
         this.physics.add.overlap(this.mocca, this.gato, this.hitGato, null, this);
 
-        // --- BOTONES DE UI DEL NIVEL (FIJOS A LA PANTALLA ACTUAL) ---
+        // --- AJUSTE POSICIÓN DE BOTONES UI (FIJOS A LA PANTALLA) ---
         const factorUI = height / 720;
         const margenDerecho = 60 * factorUI;
         const margenSuperior = 50 * factorUI;
         const espacioEntreBotones = 80 * factorUI;
         const escalaBotonesUI = 0.4 * factorUI;
 
-        // 1. Botón de sonido (Extremo derecho)
+        // 1. Botón de Sonido
         let btnSonido = this.add.image(width - margenDerecho, margenSuperior, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
             .setOrigin(0.5)
-            .setScale(escalaBotonesUI)
+            .setScale(getEsclatFloat(escalaBotonesUI))
             .setInteractive({ useHandCursor: true })
             .setScrollFactor(0); 
 
@@ -322,7 +326,7 @@ class Level1 extends Phaser.Scene {
             btnSonido.setTexture(nuevoMute ? 'Mute' : 'Unmute');
         });
 
-        // 2. Botón de pausa (A la izquierda del de sonido)
+        // 2. Botón de Pausa
         let btnPausa = this.add.image(btnSonido.x - espacioEntreBotones, margenSuperior, 'Pause')
             .setOrigin(0.5)
             .setScale(escalaBotonesUI)
@@ -345,19 +349,34 @@ class Level1 extends Phaser.Scene {
             btn.on('pointerout', () => btn.clearTint());
         });
 
-        // Si redimensionan la ventana en pleno juego, reajustamos elementos del nivel
+        // Evento de ajuste dinámico por si cambian el tamaño de la ventana del navegador
         this.scale.on('resize', (gameSize) => {
             const w = gameSize.width;
             const h = gameSize.height;
             this.physics.world.setBounds(0, 0, 2400, h);
-            if (this.fondoBosque) this.fondoBosque.setSize(w, h);
+            
+            if (this.fondoBosque) {
+                this.fondoBosque.setSize(w, h);
+                let resTex = this.textures.get('background').getSourceImage();
+                let rY = h / resTex.height;
+                let rX = w / resTex.width;
+                let fEscala = Math.max(rX, rY);
+                this.fondoBosque.tileScaleX = fEscala;
+                this.fondoBosque.tileScaleY = fEscala;
+            }
+            
             btnSonido.setPosition(w - (60 * (h / 720)), 50 * (h / 720));
             btnPausa.setPosition(btnSonido.x - (80 * (h / 720)), 50 * (h / 720));
         });
     }
 
     update() {
-        this.fondoBosque.tilePositionX = this.cameras.main.scrollX * 0.3;
+        // --- MOVIMIENTO PARALLAX CON TILESPRITE VINCULADO A LA CÁMARA ---
+        // Desplazamos la posición interna X del tileSprite basándonos en la posición de la cámara.
+        // Dividir por el factor de escala evita que el fondo se desplace a los piques debido al estiramiento.
+        if (this.fondoBosque) {
+            this.fondoBosque.tilePositionX = (this.cameras.main.scrollX * 0.3) / this.fondoBosque.tileScaleX;
+        }
 
         if (this.isRebounding) return;
 
@@ -448,17 +467,22 @@ class Level1 extends Phaser.Scene {
     }
 }
 
+// Función auxiliar para parsear valores limpios de escala
+function getEsclatFloat(val) {
+    return parseFloat(val) || 0.4;
+}
+
 
 // ============================================================================
 // --- CONFIGURACIÓN E INICIALIZACIÓN (MODO RESIZE COMPLETAMENTE FLUIDO) ---
 // ============================================================================
 const config = {
     type: Phaser.AUTO,
-    width: window.innerWidth,    // Ocupa el ancho completo real de la pestaña
-    height: window.innerHeight,  // Ocupa el alto completo real de la pestaña
+    width: window.innerWidth,    
+    height: window.innerHeight,  
     parent: "game-container",
     scale: {
-        mode: Phaser.Scale.RESIZE, // Seteamos el escalado nativo estirable de Phaser
+        mode: Phaser.Scale.RESIZE, 
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
     physics: {
