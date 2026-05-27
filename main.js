@@ -204,8 +204,8 @@ class Level1 extends Phaser.Scene {
         this.load.audio("gato_daño", "Audio/gato_daño.mp3");
         this.load.audio("level_1", "Audio/level_1.mp3");
         this.load.audio("mocca_jump", "Audio/mocca_jump.wav");
-        this.load.spritesheet("huesito", "Assets/huesito.png", { frameWidth: 64, frameHeight: 64 });
-        this.load.spritesheet("gato", "Assets/Black-Run.png", { frameWidth: 48, frameHeight: 48 });
+        this.load.spritesheet("huesito", "Assets/Huesito.png", { frameWidth: 64, frameHeight: 64 });
+        this.load.spritesheet("gato", "Assets/BlackRun.png", { frameWidth: 48, frameHeight: 48 });
         this.load.image("background", "Assets/background.png");
 
         this.load.image("Continue", "Assets/Botones/Continue.png");
