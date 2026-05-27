@@ -54,7 +54,7 @@ const audioManager = AudioManager.getInstance();
 
 
 // ============================================================================
-// --- ESCENA: MENÚ PRINCIPAL (100% ADAPTATIVO CON EFECTO COVER Y ESCALA CHICA) ---
+// --- ESCENA: MENÚ PRINCIPAL ---
 // ============================================================================
 class MenuScene extends Phaser.Scene {
     constructor() {
@@ -79,27 +79,22 @@ class MenuScene extends Phaser.Scene {
         audioManager.init(this.game);
         audioManager.playMusic(this, 'level_1', { volume: 0.2, loop: true });
 
-        // --- EFECTO COVER: EL FONDO SE ADAPTA SIN MOSAICOS NI CORTES ---
         let fondo = this.add.image(width / 2, height / 2, 'background');
         let escalaX = width / fondo.width;
         let escalaY = height / fondo.height;
         let escalaFondo = Math.max(escalaX, escalaY);
         fondo.setScale(escalaFondo);
 
-        // --- ESCALA BASE PARA PANTALLAS (PROPORCIÓN CONTROLADA) ---
         const baseScale = height / 768; 
 
-        // --- LOGO PRINCIPAL (TAMAÑO COMPACTO Y ESTILIZADO) ---
         let cartelTitulo = this.add.image(width / 2, height * 0.28, 'Imagen_Menu')
             .setOrigin(0.5)
             .setScale(0.35 * baseScale); 
 
-        // --- BOTONERA EN COLUMNA ---
         const escalaBotones = 0.5 * baseScale; 
         const separacion = 48 * baseScale;    
         const baseBotonesY = height * 0.56;   
 
-        // 1. START
         let btnStart = this.add.image(width / 2, baseBotonesY, 'Start')
             .setOrigin(0.5)
             .setScale(escalaBotones)
@@ -109,7 +104,6 @@ class MenuScene extends Phaser.Scene {
             this.scene.start('Level1');
         });
 
-        // 2. CONTINUE
         let btnContinue = this.add.image(width / 2, baseBotonesY + separacion, 'Continue')
             .setOrigin(0.5)
             .setScale(escalaBotones)
@@ -119,17 +113,15 @@ class MenuScene extends Phaser.Scene {
             console.log("Cargar partida...");
         });
 
-        // 3. HELP
         let btnHelp = this.add.image(width / 2, baseBotonesY + (separacion * 2), 'Help')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
 
         btnHelp.on('pointerdown', () => {
-            alert("Controles: Flechas para moverte, Espacio para saltar y Z para ladrar.");
+            alert("Controles: Flechas para moverte, Espacio para saltar y Z para ladrar. En el nivel 1 los gatos solo patrullaran el piso, pero luego se pondra mas dificil. Diviertete!");
         });
 
-        // 4. CREDITS
         let btnCredits = this.add.image(width / 2, baseBotonesY + (separacion * 3), 'Credits')
             .setOrigin(0.5)
             .setScale(escalaBotones)
@@ -139,13 +131,11 @@ class MenuScene extends Phaser.Scene {
             alert("Desarrollado por Martín - ULP 2026");
         });
 
-        // Efectos Hover (Iluminación)
         [btnStart, btnContinue, btnHelp, btnCredits].forEach(btn => {
             btn.on('pointerover', () => btn.setTint(0xffcc00));
             btn.on('pointerout', () => btn.clearTint());
         });
 
-        // --- BOTÓN DE MUTEAR ---
         let btnSonido = this.add.image(width - 40, 40, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
             .setOrigin(0.5)
             .setScale(0.35 * baseScale) 
@@ -160,20 +150,17 @@ class MenuScene extends Phaser.Scene {
         btnSonido.on('pointerover', () => btnSonido.setTint(0xffcc00));
         btnSonido.on('pointerout', () => btnSonido.clearTint());
 
-        // Escucha del redimensionamiento de pantalla
         this.scale.on('resize', () => {
             this.scene.restart();
         });
     }
 
-    update() {
-        // Sin movimiento de texturas en el menú plano
-    }
+    update() {}
 }
 
 
 // ============================================================================
-// --- ESCENA: NIVEL 1 (FONDO CON TILESPRITE ADAPTATIVO CORREGIDO) ---
+// --- ESCENA: NIVEL 1 (MAPA COMPLETO) ---
 // ============================================================================
 class Level1 extends Phaser.Scene {
     constructor() {
@@ -181,10 +168,17 @@ class Level1 extends Phaser.Scene {
         this.mocca = null;
         this.cursors = null;
         this.ground = null;
-        this.gato = null;
+        this.platforms = null;
+        this.gatos = null;
         this.isbarking = false;
         this.isRebounding = false;
         this.isPaused = false; 
+        this.longitudNivel = 12000; 
+
+        // --- PARÁMETROS FÍSICOS DE CONTROL ---
+        this.PLAYER_SPEED = 160;
+        this.JUMP_VELOCITY = -380; 
+        this.GRAVITY = 500;
     }
 
     preload() {
@@ -193,6 +187,8 @@ class Level1 extends Phaser.Scene {
         this.load.spritesheet("mocca_jump", "Assets/Mocca_jump.png", { frameWidth: 64, frameHeight: 64 });
         this.load.spritesheet("mocca_bark", "Assets/Mocca_bark.png", { frameWidth: 64, frameHeight: 64 });
         this.load.image("ground", "Assets/ground.png");
+        this.load.image("cloud_platform", "Assets/plataformaAire.png");
+
         this.load.audio("bark_sound", "Audio/bark_sound.mp3");
         this.load.audio("comer_hueso", "Audio/comer_hueso.mp3");
         this.load.audio("mocca_daño", "Audio/mocca_daño.mp3");
@@ -216,16 +212,13 @@ class Level1 extends Phaser.Scene {
     create() {
         const { width, height } = this.scale;
         
-        this.physics.world.setBounds(0, 0, 2400, height);
+        this.physics.world.setBounds(0, 0, this.longitudNivel, height);
         audioManager.playMusic(this, 'level_1', { volume: 0.2, loop: true });
 
-        // --- SOLUCIÓN TILESPRITE MATEMÁTICO ---
-        // Creamos el tileSprite ocupando TODO el tamaño dinámico de la pantalla
         this.fondoBosque = this.add.tileSprite(0, 0, width, height, 'background');
         this.fondoBosque.setOrigin(0, 0);
-        this.fondoBosque.setScrollFactor(0); // Fijo a la pantalla, lo moveremos de forma manual en el update()
+        this.fondoBosque.setScrollFactor(0); 
 
-        // Ajustamos la escala interna de la textura para que cubra todo el alto sin repetirse en el eje Y
         let texturaOriginal = this.textures.get('background').getSourceImage();
         let escalaInternaY = height / texturaOriginal.height;
         let escalaInternaX = width / texturaOriginal.width;
@@ -234,28 +227,95 @@ class Level1 extends Phaser.Scene {
         this.fondoBosque.tileScaleX = factorEscalaFinal;
         this.fondoBosque.tileScaleY = factorEscalaFinal;
 
-        // --- CAPA DE SUELO FÍSICO ---
+        // --- CAPA DE SUELO GENERAL COMPLETAMENTE SÓLIDA ---
         this.ground = this.physics.add.staticGroup();
-        for (let x = 0; x < 2400; x += 128) {
+        for (let x = 0; x < this.longitudNivel; x += 128) {
             let tile = this.ground.create(x, height - 32, "ground").setScale(2).refreshBody();
             tile.body.setSize(128, 45);
             tile.body.setOffset(0, 19);
         }
 
-        // Personaje Mocca
+        // --- SISTEMA DE PLATAFORMAS FLOTANTES EXTENDIDO POR TODO EL NIVEL ---
+        this.platforms = this.physics.add.staticGroup();
+        let bones = this.physics.add.group();
+        this.gatos = this.physics.add.group();
+
+        this.anims.create({ key: "huesito_rotate", frames: this.anims.generateFrameNumbers("huesito", { start: 0, end: 4 }), frameRate: 7, repeat: -1 });
+        this.anims.create({ key: "gato_run", frames: this.anims.generateFrameNumbers("gato", { start: 0, end: 5 }), frameRate: 7, repeat: -1 });
+
+        // Diseño automatizado y fluido que cubre de 400 a 10400 metros (Última parte libre)
+        const diseñoNivel = [];
+        let proximoX = 400;
+        let alternarAltura = 0;
+
+        while (proximoX < 10400) {
+            let bloquesIsla = Math.floor(Math.random() * 2) + 1; // Islas de 1 o 2 bloques
+            let alturaY = height - 130; // Altura estándar baja
+
+            if (alternarAltura === 1) alturaY = height - 220;
+            if (alternarAltura === 2) alturaY = height - 310;
+
+            diseñoNivel.push({ x: proximoX, y: alturaY, bloques: bloquesIsla });
+
+            proximoX += Math.floor(Math.random() * 80) + 260; // Distancia horizontal testeada para saltos cómodos
+            alternarAltura = (alternarAltura + 1) % 3;
+        }
+
+        const separacionNubes = 120;
+
+        diseñoNivel.forEach(isla => {
+            let anchoTotalIsla = (isla.bloques - 1) * separacionNubes;
+            let inicioX = isla.x - (anchoTotalIsla / 2);
+
+            for (let i = 0; i < isla.bloques; i++) {
+                let nubeX = inicioX + (i * separacionNubes);
+                let nube = this.platforms.create(nubeX, isla.y, "cloud_platform");
+                nube.setScale(0.2).refreshBody();
+                
+                nube.body.setSize((nube.displayWidth / 2) - 10, 1); 
+                nube.body.setOffset(50, 20);
+
+                // Pasable desde abajo
+                nube.body.checkCollision.down = false;
+                nube.body.checkCollision.left = false;
+                nube.body.checkCollision.right = false;
+
+                let huesito = bones.create(nubeX, isla.y - 40, "huesito");
+                huesito.body.setAllowGravity(false);
+            }
+        });
+
+        // --- ENEMIGOS EN EL SUELO COMPLETAMENTE REPARTIDOS (Hasta la zona libre final) ---
+        for (let posX = 600; posX < 10300; posX += 450) {
+            let gatoSuelo = this.gatos.create(posX, height - 150, "gato").setScale(1.5);
+            gatoSuelo.body.setSize(35, 22);
+            gatoSuelo.body.setOffset(6, 26);
+            gatoSuelo.setCollideWorldBounds(true);
+            
+            gatoSuelo.speed = 80 + Math.random() * 40;
+            gatoSuelo.distaciaPatrulla = 140; 
+            gatoSuelo.puntoInicialX = posX;
+            gatoSuelo.anims.play("gato_run");
+            gatoSuelo.setVelocityX(gatoSuelo.speed);
+        }
+
+        // --- PERSONAJE MOCCA ---
         this.mocca = this.physics.add.sprite(100, height - 100, "mocca").setScale(1.5);
         this.mocca.body.setSize(50, 35);
         this.mocca.body.setOffset(8, 12);
 
         this.cameras.main.startFollow(this.mocca, true, 0.05, 0.05);
-        this.cameras.main.setBounds(0, 0, 2400, height);
+        this.cameras.main.setBounds(0, 0, this.longitudNivel, height);
 
         this.physics.add.collider(this.mocca, this.ground);
+        
+        // Asignamos el colisionador con las nubes a una variable para interactuar en el update
+        this.platformCollider = this.physics.add.collider(this.mocca, this.platforms);
         this.mocca.setCollideWorldBounds(true);
 
         this.cursors = this.input.keyboard.createCursorKeys();
 
-        // Animaciones de Mocca
+        // Animaciones
         this.anims.create({ key: "idle", frames: this.anims.generateFrameNumbers("mocca", { start: 0, end: 1 }), frameRate: 7, repeat: -1 });
         this.anims.create({ key: "run", frames: this.anims.generateFrameNumbers("mocca_run", { start: 0, end: 2 }), frameRate: 7, repeat: -1 });
         this.anims.create({ key: "jump", frames: this.anims.generateFrameNumbers("mocca_jump", { start: 0, end: 3 }), frameRate: 2, repeat: 0 });
@@ -266,57 +326,36 @@ class Level1 extends Phaser.Scene {
         this.keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
         this.mocca.anims.play("idle");
 
-        this.anims.create({ key: "huesito_rotate", frames: this.anims.generateFrameNumbers("huesito", { start: 0, end: 4 }), frameRate: 7, repeat: -1 });
-        this.anims.create({ key: "gato_run", frames: this.anims.generateFrameNumbers("gato", { start: 0, end: 5 }), frameRate: 7, repeat: -1 });
-
-        // Generación de Huesos
-        let bones = this.physics.add.group();
-        for (let i = 0; i < 15; i++) {
-            let x = 500 + i * 150;
-            let y = height - 200;
-            let huesito = bones.create(x, y, "huesito");
-            huesito.anims.play("huesito_rotate");
-            huesito.body.setSize(30, 30);
-            huesito.body.setAllowGravity(false);
-
-            this.tweens.add({
-                targets: huesito,
-                y: y - 20,
-                duration: 1500,
-                ease: "Sine.easeInOut",
-                yoyo: true,
-                repeat: -1,
-            });
-        }
+        bones.children.iterate(huesito => {
+            if (huesito) {
+                huesito.anims.play("huesito_rotate");
+                huesito.body.setSize(30, 30);
+                this.tweens.add({
+                    targets: huesito,
+                    y: huesito.y - 12,
+                    duration: 1200 + Math.random() * 400,
+                    ease: "Sine.easeInOut",
+                    yoyo: true,
+                    repeat: -1,
+                });
+            }
+        });
 
         this.physics.add.overlap(this.mocca, bones, this.collectBone, null, this);
 
-        // Enemigo Gato
-        this.gato = this.physics.add.sprite(1200, height - 150, "gato").setScale(1.5);
-        this.gato.body.setSize(35, 22);
-        this.gato.body.setOffset(6, 26);
-        this.gato.setCollideWorldBounds(true);
-        this.physics.add.collider(this.gato, this.ground);
+        this.physics.add.collider(this.gatos, this.ground);
+        this.physics.add.overlap(this.mocca, this.gatos, this.hitGato, null, this);
 
-        this.gato.speed = 100;
-        this.gato.distaciaPatrulla = 300;
-        this.gato.puntoInicialX = this.gato.x;
-        this.gato.anims.play("gato_run");
-        this.gato.setVelocityX(this.gato.speed);
-
-        this.physics.add.overlap(this.mocca, this.gato, this.hitGato, null, this);
-
-        // --- AJUSTE POSICIÓN DE BOTONES UI (FIJOS A LA PANTALLA) ---
+        // --- BOTONES UI ---
         const factorUI = height / 720;
         const margenDerecho = 60 * factorUI;
         const margenSuperior = 50 * factorUI;
         const espacioEntreBotones = 80 * factorUI;
         const escalaBotonesUI = 0.4 * factorUI;
 
-        // 1. Botón de Sonido
         let btnSonido = this.add.image(width - margenDerecho, margenSuperior, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
             .setOrigin(0.5)
-            .setScale(getEsclatFloat(escalaBotonesUI))
+            .setScale(getEscalaFloat(escalaBotonesUI))
             .setInteractive({ useHandCursor: true })
             .setScrollFactor(0); 
 
@@ -326,7 +365,6 @@ class Level1 extends Phaser.Scene {
             btnSonido.setTexture(nuevoMute ? 'Mute' : 'Unmute');
         });
 
-        // 2. Botón de Pausa
         let btnPausa = this.add.image(btnSonido.x - espacioEntreBotones, margenSuperior, 'Pause')
             .setOrigin(0.5)
             .setScale(escalaBotonesUI)
@@ -337,10 +375,10 @@ class Level1 extends Phaser.Scene {
             this.isPaused = !this.isPaused;
             if (this.isPaused) {
                 btnPausa.setTexture('Resume');
-                console.log("Juego Pausado - Mañana metemos la lógica del menú acá");
+                this.physics.pause();
             } else {
                 btnPausa.setTexture('Pause');
-                console.log("Juego Reanudado");
+                this.physics.resume();
             }
         });
 
@@ -349,18 +387,15 @@ class Level1 extends Phaser.Scene {
             btn.on('pointerout', () => btn.clearTint());
         });
 
-        // Evento de ajuste dinámico por si cambian el tamaño de la ventana del navegador
         this.scale.on('resize', (gameSize) => {
             const w = gameSize.width;
             const h = gameSize.height;
-            this.physics.world.setBounds(0, 0, 2400, h);
+            this.physics.world.setBounds(0, 0, this.longitudNivel, h);
             
             if (this.fondoBosque) {
                 this.fondoBosque.setSize(w, h);
                 let resTex = this.textures.get('background').getSourceImage();
-                let rY = h / resTex.height;
-                let rX = w / resTex.width;
-                let fEscala = Math.max(rX, rY);
+                let fEscala = Math.max(h / resTex.height, w / resTex.width);
                 this.fondoBosque.tileScaleX = fEscala;
                 this.fondoBosque.tileScaleY = fEscala;
             }
@@ -371,32 +406,40 @@ class Level1 extends Phaser.Scene {
     }
 
     update() {
-        // --- MOVIMIENTO PARALLAX CON TILESPRITE VINCULADO A LA CÁMARA ---
-        // Desplazamos la posición interna X del tileSprite basándonos en la posición de la cámara.
-        // Dividir por el factor de escala evita que el fondo se desplace a los piques debido al estiramiento.
         if (this.fondoBosque) {
             this.fondoBosque.tilePositionX = (this.cameras.main.scrollX * 0.3) / this.fondoBosque.tileScaleX;
         }
 
-        if (this.isRebounding) return;
-
-        if (this.gato && this.gato.active && this.gato.body) {
-            if (this.gato.x >= this.gato.puntoInicialX + this.gato.distaciaPatrulla) {
-                this.gato.setVelocityX(-this.gato.speed);
-                this.gato.setFlipX(true);
-            } else if (this.gato.x <= this.gato.puntoInicialX - this.gato.distaciaPatrulla) {
-                this.gato.setVelocityX(this.gato.speed);
-                this.gato.setFlipX(false);
+        this.gatos.children.iterate(gato => {
+            if (gato && gato.active && gato.body) {
+                if (gato.x >= gato.puntoInicialX + gato.distaciaPatrulla) {
+                    gato.setVelocityX(-gato.speed);
+                    gato.setFlipX(true);
+                } else if (gato.x <= gato.puntoInicialX - gato.distaciaPatrulla) {
+                    gato.setVelocityX(gato.speed);
+                    gato.setFlipX(false);
+                }
             }
-        }
+        });
 
-        if (this.isbarking) return;
+        if (this.isRebounding || this.isbarking || this.isPaused) return;
+
+        // --- NUEVA MECÁNICA: BAJARSE DE LAS NUBES CON FLECHA ABAJO ---
+        // body.touching.down asegura que Mocca esté efectivamente parada sobre la nube
+        // !body.onFloor() nos re asegura que NO esté en el piso principal
+        if (this.cursors.down.isDown && this.mocca.body.touching.down && !this.mocca.body.onFloor()) {
+            this.mocca.body.checkCollision.none = true;
+            
+            this.time.delayedCall(250, () => {
+                this.mocca.body.checkCollision.none = false;
+            });
+        }
 
         if (Phaser.Input.Keyboard.JustDown(this.keyZ)) {
             this.isbarking = true;
             this.sound.play("bark_sound", { volume: 0.2 });
 
-            if (!this.mocca.body.onFloor()) {
+            if (!this.mocca.body.onFloor() && !this.mocca.body.touching.down) {
                 this.mocca.anims.play("bark_jump", true);
             } else if (this.cursors.left.isDown || this.cursors.right.isDown) {
                 this.mocca.anims.play("bark_run", true);
@@ -404,32 +447,31 @@ class Level1 extends Phaser.Scene {
                 this.mocca.anims.play("bark_idle", true);
             }
 
-            this.time.delayedCall(300, () => {
-                this.isbarking = false;
-            });
+            this.time.delayedCall(300, () => { this.isbarking = false; });
             return;
         }
 
         if (this.cursors.left.isDown) {
-            this.mocca.setVelocityX(-160);
+            this.mocca.setVelocityX(-this.PLAYER_SPEED);
             this.mocca.setFlipX(true);
-            if (this.mocca.body.onFloor()) this.mocca.anims.play("run", true);
+            if (this.mocca.body.onFloor() || this.mocca.body.touching.down) this.mocca.anims.play("run", true);
         } else if (this.cursors.right.isDown) {
-            this.mocca.setVelocityX(160);
+            this.mocca.setVelocityX(this.PLAYER_SPEED);
             this.mocca.setFlipX(false);
-            if (this.mocca.body.onFloor()) this.mocca.anims.play("run", true);
+            if (this.mocca.body.onFloor() || this.mocca.body.touching.down) this.mocca.anims.play("run", true);
         } else {
             this.mocca.setVelocityX(0);
-            if (this.mocca.body.onFloor()) this.mocca.anims.play("idle", true);
+            if (this.mocca.body.onFloor() || this.mocca.body.touching.down) this.mocca.anims.play("idle", true);
         }
 
-        if (this.cursors.space.isDown && this.mocca.body.onFloor()) {
-            this.mocca.setVelocityY(-350);
+        // Saltar funciona tanto desde el piso como desde las nubes
+        if (this.cursors.space.isDown && (this.mocca.body.onFloor() || this.mocca.body.touching.down)) {
+            this.mocca.setVelocityY(this.JUMP_VELOCITY);
             this.mocca.anims.play("jump", true);
             this.sound.play("mocca_jump", { volume: 0.3 });
         }
 
-        if (!this.mocca.body.onFloor() && this.mocca.anims.currentAnim.key !== "jump") {
+        if (!this.mocca.body.onFloor() && !this.mocca.body.touching.down && this.mocca.anims.currentAnim.key !== "jump" && !this.isbarking) {
             this.mocca.anims.play("jump", true);
         }
     }
@@ -467,14 +509,13 @@ class Level1 extends Phaser.Scene {
     }
 }
 
-// Función auxiliar para parsear valores limpios de escala
-function getEsclatFloat(val) {
+function getEscalaFloat(val) {
     return parseFloat(val) || 0.4;
 }
 
 
 // ============================================================================
-// --- CONFIGURACIÓN E INICIALIZACIÓN (MODO RESIZE COMPLETAMENTE FLUIDO) ---
+// --- CONFIGURACIÓN E INICIALIZACIÓN ---
 // ============================================================================
 const config = {
     type: Phaser.AUTO,
@@ -488,8 +529,8 @@ const config = {
     physics: {
         default: "arcade",
         arcade: {
-            gravity: { y: 500 },
-            debug: false,
+            gravity: { y: 500 }, 
+            debug: false, 
         },
     },
     scene: [MenuScene, Level1] 
