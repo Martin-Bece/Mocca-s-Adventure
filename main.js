@@ -79,14 +79,16 @@ class MenuScene extends Phaser.Scene {
         audioManager.init(this.game);
         audioManager.playMusic(this, 'level_1', { volume: 0.2, loop: true });
 
+        // Fondo adaptado dinámicamente al tamaño completo de la ventana
         this.fondoMenu = this.add.tileSprite(0, 0, width, height, 'background').setOrigin(0, 0);
 
-        // Ajustamos escala y posición fija en base a la nueva resolución base
-        let cartelTitulo = this.add.image(width / 2, height * 0.25, 'Imagen_Menu')
+        // --- CARTEL DE TÍTULO PRINCIPAL (Posición basada en porcentaje real) ---
+        let cartelTitulo = this.add.image(width / 2, height * 0.22, 'Imagen_Menu')
             .setOrigin(0.5)
-            .setScale(0.28); 
+            .setScale(0.33);
 
-        const escalaBotones = 0.6; // Reducidos un poco para mantener armonía visual
+        // --- BOTONES EN COLUMNA (Escala fija pixel art, posiciones dinámicas) ---
+        const escalaBotones = 0.75;
 
         // 1. START
         let btnStart = this.add.image(width / 2, height * 0.52, 'Start')
@@ -99,7 +101,7 @@ class MenuScene extends Phaser.Scene {
         });
 
         // 2. CONTINUE
-        let btnContinue = this.add.image(width / 2, height * 0.63, 'Continue')
+        let btnContinue = this.add.image(width / 2, height * 0.62, 'Continue')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
@@ -109,17 +111,17 @@ class MenuScene extends Phaser.Scene {
         });
 
         // 3. HELP
-        let btnHelp = this.add.image(width / 2, height * 0.74, 'Help')
+        let btnHelp = this.add.image(width / 2, height * 0.72, 'Help')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
 
         btnHelp.on('pointerdown', () => {
-            alert("Controles: Flechas para moverte, Espacio para saltar y Z para ladrar. ¡Diviértete jugando con Mocca!");
+            alert("Controles: Flechas para moverte, Espacio para saltar y Z para ladrar. ¡Diviértete jugando!");
         });
 
         // 4. CREDITS
-        let btnCredits = this.add.image(width / 2, height * 0.85, 'Credits')
+        let btnCredits = this.add.image(width / 2, height * 0.82, 'Credits')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
@@ -133,10 +135,10 @@ class MenuScene extends Phaser.Scene {
             btn.on('pointerout', () => btn.clearTint());
         });
 
-        // Botón de audio alineado a la nueva resolución de pantalla fija
-        let btnSonido = this.add.image(width - 60, 50, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
+        // --- BOTÓN MUTE / UNMUTE (Siempre pegado a la esquina superior derecha real) ---
+        let btnSonido = this.add.image(width - 50, 50, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
             .setOrigin(0.5)
-            .setScale(0.35) 
+            .setScale(0.4) 
             .setInteractive({ useHandCursor: true });
 
         btnSonido.on('pointerdown', () => {
@@ -274,16 +276,15 @@ class Level1 extends Phaser.Scene {
 
         this.physics.add.overlap(this.mocca, this.gato, this.hitGato, null, this);
 
-        // UI adaptada al ancho virtual fijo del canvas
-        const canvasWidth = this.sys.game.config.width;
-        const margenDerecho = 60;       
-        const margenSuperior = 45;      
-        const espacioEntreBotones = 70; 
-        const escalaBotones = 0.35;      
+        // --- BOTONES JUEGO (Posicionamiento dinámico en base al ancho real) ---
+        const margenDerecho = 80;       
+        const margenSuperior = 60;      
+        const espacioEntreBotones = 100; 
+        const escalaBotonesJuego = 0.4;      
 
-        let btnSonido = this.add.image(canvasWidth - margenDerecho, margenSuperior, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
+        let btnSonido = this.add.image(width - margenDerecho, margenSuperior, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
             .setOrigin(0.5)
-            .setScale(escalaBotones)
+            .setScale(escalaBotonesJuego)
             .setInteractive({ useHandCursor: true })
             .setScrollFactor(0); 
 
@@ -295,7 +296,7 @@ class Level1 extends Phaser.Scene {
 
         let btnPausa = this.add.image(btnSonido.x - espacioEntreBotones, margenSuperior, 'Pause')
             .setOrigin(0.5)
-            .setScale(escalaBotones)
+            .setScale(escalaBotonesJuego)
             .setInteractive({ useHandCursor: true })
             .setScrollFactor(0); 
 
@@ -303,7 +304,7 @@ class Level1 extends Phaser.Scene {
             this.isPaused = !this.isPaused;
             if (this.isPaused) {
                 btnPausa.setTexture('Resume');
-                console.log("Juego Pausado - Mañana metemos la lógica del menú acá");
+                console.log("Juego Pausado");
             } else {
                 btnPausa.setTexture('Pause');
                 console.log("Juego Reanudado");
@@ -410,15 +411,15 @@ class Level1 extends Phaser.Scene {
 
 
 // ============================================================================
-// --- CONFIGURACIÓN E INICIALIZACIÓN (Cambio Clave para Vercel) ---
+// --- CONFIGURACIÓN E INICIALIZACIÓN (Solución completa pantallas estiradas) ---
 // ============================================================================
 const config = {
     type: Phaser.AUTO,
-    width: 1024,                  // Resolución interna base fija (relación de aspecto 16:9)
-    height: 576,                 // Mantiene todo controlado sin importar el monitor
+    width: window.innerWidth,
+    height: window.innerHeight,
     parent: "game-container",
     scale: {
-        mode: Phaser.Scale.FIT,   // Reescalado automático inteligente para el canvas completo
+        mode: Phaser.Scale.RESIZE, // Volvemos a RESIZE para estirar el juego al 100% de la ventana
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
     physics: {
