@@ -79,16 +79,14 @@ class MenuScene extends Phaser.Scene {
         audioManager.init(this.game);
         audioManager.playMusic(this, 'level_1', { volume: 0.2, loop: true });
 
-        // Fondo adaptado dinámicamente al tamaño completo de la ventana
         this.fondoMenu = this.add.tileSprite(0, 0, width, height, 'background').setOrigin(0, 0);
 
-        // --- CARTEL DE TÍTULO PRINCIPAL (Posición basada en porcentaje real) ---
-        let cartelTitulo = this.add.image(width / 2, height * 0.22, 'Imagen_Menu')
+        // --- CARTEL DE TÍTULO PRINCIPAL (Proporciones perfectas en base virtual) ---
+        let cartelTitulo = this.add.image(width / 2, height * 0.25, 'Imagen_Menu')
             .setOrigin(0.5)
-            .setScale(0.33);
+            .setScale(0.28); 
 
-        // --- BOTONES EN COLUMNA (Escala fija pixel art, posiciones dinámicas) ---
-        const escalaBotones = 0.75;
+        const escalaBotones = 0.6; 
 
         // 1. START
         let btnStart = this.add.image(width / 2, height * 0.52, 'Start')
@@ -101,7 +99,7 @@ class MenuScene extends Phaser.Scene {
         });
 
         // 2. CONTINUE
-        let btnContinue = this.add.image(width / 2, height * 0.62, 'Continue')
+        let btnContinue = this.add.image(width / 2, height * 0.63, 'Continue')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
@@ -111,7 +109,7 @@ class MenuScene extends Phaser.Scene {
         });
 
         // 3. HELP
-        let btnHelp = this.add.image(width / 2, height * 0.72, 'Help')
+        let btnHelp = this.add.image(width / 2, height * 0.74, 'Help')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
@@ -121,7 +119,7 @@ class MenuScene extends Phaser.Scene {
         });
 
         // 4. CREDITS
-        let btnCredits = this.add.image(width / 2, height * 0.82, 'Credits')
+        let btnCredits = this.add.image(width / 2, height * 0.85, 'Credits')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
@@ -135,10 +133,10 @@ class MenuScene extends Phaser.Scene {
             btn.on('pointerout', () => btn.clearTint());
         });
 
-        // --- BOTÓN MUTE / UNMUTE (Siempre pegado a la esquina superior derecha real) ---
-        let btnSonido = this.add.image(width - 50, 50, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
+        // --- BOTÓN MUTE / UNMUTE (Alineado en base virtual) ---
+        let btnSonido = this.add.image(width - 60, 50, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
             .setOrigin(0.5)
-            .setScale(0.4) 
+            .setScale(0.35) 
             .setInteractive({ useHandCursor: true });
 
         btnSonido.on('pointerdown', () => {
@@ -276,13 +274,14 @@ class Level1 extends Phaser.Scene {
 
         this.physics.add.overlap(this.mocca, this.gato, this.hitGato, null, this);
 
-        // --- BOTONES JUEGO (Posicionamiento dinámico en base al ancho real) ---
-        const margenDerecho = 80;       
-        const margenSuperior = 60;      
-        const espacioEntreBotones = 100; 
-        const escalaBotonesJuego = 0.4;      
+        // UI calibrada para la resolución virtual
+        const canvasWidth = this.sys.game.config.width;
+        const margenDerecho = 60;       
+        const margenSuperior = 45;      
+        const espacioEntreBotones = 70; 
+        const escalaBotonesJuego = 0.35;      
 
-        let btnSonido = this.add.image(width - margenDerecho, margenSuperior, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
+        let btnSonido = this.add.image(canvasWidth - margenDerecho, margenSuperior, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
             .setOrigin(0.5)
             .setScale(escalaBotonesJuego)
             .setInteractive({ useHandCursor: true })
@@ -411,15 +410,15 @@ class Level1 extends Phaser.Scene {
 
 
 // ============================================================================
-// --- CONFIGURACIÓN E INICIALIZACIÓN (Solución completa pantallas estiradas) ---
+// --- CONFIGURACIÓN E INICIALIZACIÓN (Ajuste Final para Vercel) ---
 // ============================================================================
 const config = {
     type: Phaser.AUTO,
-    width: window.innerWidth,
-    height: window.innerHeight,
+    width: 1024,                  // Ancho virtual base
+    height: 576,                 // Alto virtual base
     parent: "game-container",
     scale: {
-        mode: Phaser.Scale.RESIZE, // Volvemos a RESIZE para estirar el juego al 100% de la ventana
+        mode: Phaser.Scale.ENVELOP, // Llena la pantalla SIN bandas negras y SIN deformar imágenes
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
     physics: {
