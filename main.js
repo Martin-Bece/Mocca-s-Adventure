@@ -14,7 +14,7 @@ class AudioManager {
 
     static getInstance() {
         if (!AudioManager.instance) {
-            AudioManager.instance = new AudioManager();
+            return AudioManager.instance = new AudioManager();
         }
         return AudioManager.instance;
     }
@@ -24,15 +24,12 @@ class AudioManager {
     }
 
     playMusic(scene, key, config = { volume: 0.2, loop: true }) {
-        // Si ya está sonando esa misma canción, no hacemos nada para evitar duplicarla
         if (this.currentMusic && this.currentMusic.key === key && this.currentMusic.isPlaying) {
             return;
         }
 
-        // Si hay otra música sonando, la detenemos de forma prolija
         this.stopMusic();
 
-        // Reproducimos el nuevo tema usando el sistema de audio de la escena activa
         this.currentMusic = scene.sound.add(key, config);
         this.currentMusic.play();
     }
@@ -53,7 +50,6 @@ class AudioManager {
     }
 }
 
-// Instanciamos el Singleton global
 const audioManager = AudioManager.getInstance();
 
 
@@ -74,28 +70,23 @@ class MenuScene extends Phaser.Scene {
         this.load.image('Unmute', 'Assets/Botones/Unmute.png');
         this.load.image('Start', 'Assets/Botones/Start.png');
         this.load.image('Imagen_Menu', 'Assets/Imagen_Menu.png');
-        this.load.audio('level_1', 'Audio/level_1.mp3'); // Cargada para el Singleton
+        this.load.audio('level_1', 'Audio/level_1.mp3');
     }
 
     create() {
         const { width, height } = this.scale;
 
-        // Inicializamos el AudioManager con la instancia del juego si no se hizo antes
         audioManager.init(this.game);
-
-        // Arrancamos la música de fondo controlada por el Singleton
         audioManager.playMusic(this, 'level_1', { volume: 0.2, loop: true });
 
-        // Fondo con movimiento infinito
         this.fondoMenu = this.add.tileSprite(0, 0, width, height, 'background').setOrigin(0, 0);
 
-        // --- CARTEL DE TÍTULO PRINCIPAL (Calibración Óptima) ---
-        let cartelTitulo = this.add.image(width / 2, height * 0.20, 'Imagen_Menu')
+        // Ajustamos escala y posición fija en base a la nueva resolución base
+        let cartelTitulo = this.add.image(width / 2, height * 0.25, 'Imagen_Menu')
             .setOrigin(0.5)
-            .setScale(0.33);
+            .setScale(0.28); 
 
-        // --- BOTONES EN COLUMNA ---
-        const escalaBotones = 0.75;
+        const escalaBotones = 0.6; // Reducidos un poco para mantener armonía visual
 
         // 1. START
         let btnStart = this.add.image(width / 2, height * 0.52, 'Start')
@@ -108,7 +99,7 @@ class MenuScene extends Phaser.Scene {
         });
 
         // 2. CONTINUE
-        let btnContinue = this.add.image(width / 2, height * 0.62, 'Continue')
+        let btnContinue = this.add.image(width / 2, height * 0.63, 'Continue')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
@@ -118,17 +109,17 @@ class MenuScene extends Phaser.Scene {
         });
 
         // 3. HELP
-        let btnHelp = this.add.image(width / 2, height * 0.72, 'Help')
+        let btnHelp = this.add.image(width / 2, height * 0.74, 'Help')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
 
         btnHelp.on('pointerdown', () => {
-            alert("Controles: Flechas para moverte, Espacio para saltar y Z para ladrar. Zoom Recomendado de pantalla 80% para mejor experiencia visual. ¡Diviértete jugando!");
+            alert("Controles: Flechas para moverte, Espacio para saltar y Z para ladrar. ¡Diviértete jugando con Mocca!");
         });
 
         // 4. CREDITS
-        let btnCredits = this.add.image(width / 2, height * 0.82, 'Credits')
+        let btnCredits = this.add.image(width / 2, height * 0.85, 'Credits')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
@@ -137,16 +128,15 @@ class MenuScene extends Phaser.Scene {
             alert("Desarrollado por Martín - ULP 2026");
         });
 
-        // --- EFECTO VISUAL AL PASAR EL MOUSE ---
         [btnStart, btnContinue, btnHelp, btnCredits].forEach(btn => {
             btn.on('pointerover', () => btn.setTint(0xffcc00));
             btn.on('pointerout', () => btn.clearTint());
         });
 
-        // --- BOTÓN MUTE / UNMUTE (Sincronizado vía Singleton) ---
-        let btnSonido = this.add.image(width - 50, 50, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
+        // Botón de audio alineado a la nueva resolución de pantalla fija
+        let btnSonido = this.add.image(width - 60, 50, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
             .setOrigin(0.5)
-            .setScale(0.4) 
+            .setScale(0.35) 
             .setInteractive({ useHandCursor: true });
 
         btnSonido.on('pointerdown', () => {
@@ -170,7 +160,6 @@ class MenuScene extends Phaser.Scene {
 // ============================================================================
 // --- ESCENA: NIVEL 1 ---
 // ============================================================================
-// --- ESCENA: NIVEL 1 ---
 class Level1 extends Phaser.Scene {
     constructor() {
         super({ key: 'Level1' });
@@ -180,7 +169,7 @@ class Level1 extends Phaser.Scene {
         this.gato = null;
         this.isbarking = false;
         this.isRebounding = false;
-        this.isPaused = false; // Estado para alternar el botón de pausa
+        this.isPaused = false;
     }
 
     preload() {
@@ -213,14 +202,11 @@ class Level1 extends Phaser.Scene {
         const { width, height } = this.scale;
         this.physics.world.setBounds(0, 0, 2400, height);
 
-        // Mantenemos reproduciendo el tema a través del Singleton
         audioManager.playMusic(this, 'level_1', { volume: 0.2, loop: true });
 
-        // Fondo
         this.fondoBosque = this.add.tileSprite(0, 0, width, height, 'background').setOrigin(0, 0);
         this.fondoBosque.setScrollFactor(0);
 
-        // Suelo estático
         this.ground = this.physics.add.staticGroup();
         for (let x = 0; x < 2400; x += 128) {
             let tile = this.ground.create(x, height - 32, "ground").setScale(2).refreshBody();
@@ -228,7 +214,6 @@ class Level1 extends Phaser.Scene {
             tile.body.setOffset(0, 19);
         }
 
-        // Mocca
         this.mocca = this.physics.add.sprite(100, height - 100, "mocca").setScale(1.5);
         this.mocca.body.setSize(50, 35);
         this.mocca.body.setOffset(8, 12);
@@ -241,7 +226,6 @@ class Level1 extends Phaser.Scene {
 
         this.cursors = this.input.keyboard.createCursorKeys();
 
-        // Animaciones de Mocca
         this.anims.create({ key: "idle", frames: this.anims.generateFrameNumbers("mocca", { start: 0, end: 1 }), frameRate: 7, repeat: -1 });
         this.anims.create({ key: "run", frames: this.anims.generateFrameNumbers("mocca_run", { start: 0, end: 2 }), frameRate: 7, repeat: -1 });
         this.anims.create({ key: "jump", frames: this.anims.generateFrameNumbers("mocca_jump", { start: 0, end: 3 }), frameRate: 2, repeat: 0 });
@@ -252,11 +236,9 @@ class Level1 extends Phaser.Scene {
         this.keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
         this.mocca.anims.play("idle");
 
-        // Otras Animaciones
         this.anims.create({ key: "huesito_rotate", frames: this.anims.generateFrameNumbers("huesito", { start: 0, end: 4 }), frameRate: 7, repeat: -1 });
         this.anims.create({ key: "gato_run", frames: this.anims.generateFrameNumbers("gato", { start: 0, end: 5 }), frameRate: 7, repeat: -1 });
 
-        // Grupo de Huesos
         let bones = this.physics.add.group();
         for (let i = 0; i < 15; i++) {
             let x = 500 + i * 150;
@@ -278,7 +260,6 @@ class Level1 extends Phaser.Scene {
 
         this.physics.add.overlap(this.mocca, bones, this.collectBone, null, this);
 
-        // Enemigo Gato
         this.gato = this.physics.add.sprite(1200, height - 150, "gato").setScale(1.5);
         this.gato.body.setSize(35, 22);
         this.gato.body.setOffset(6, 26);
@@ -293,20 +274,13 @@ class Level1 extends Phaser.Scene {
 
         this.physics.add.overlap(this.mocca, this.gato, this.hitGato, null, this);
 
-
-        // ====================================================================
-        // --- INTERFAZ DE USUARIO (UI): BOTONES EN ESQUINA SUPERIOR DERECHA ---
-        // ====================================================================
-        
-        // Usamos el ancho real del canvas del juego para evitar bugs de escalado
+        // UI adaptada al ancho virtual fijo del canvas
         const canvasWidth = this.sys.game.config.width;
+        const margenDerecho = 60;       
+        const margenSuperior = 45;      
+        const espacioEntreBotones = 70; 
+        const escalaBotones = 0.35;      
 
-        const margenDerecho = 80;       // Más separado del borde derecho
-        const margenSuperior = 60;      // Un toque más abajo del techo
-        const espacioEntreBotones = 100; 
-        const escalaBotones = 0.4;      // Mantiene el pixel art perfecto
-
-        // 1. BOTÓN MUTE / UNMUTE (Extremo derecho)
         let btnSonido = this.add.image(canvasWidth - margenDerecho, margenSuperior, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
             .setOrigin(0.5)
             .setScale(escalaBotones)
@@ -319,7 +293,6 @@ class Level1 extends Phaser.Scene {
             btnSonido.setTexture(nuevoMute ? 'Mute' : 'Unmute');
         });
 
-        // 2. BOTÓN PAUSA / REANUDAR (A la izquierda del de sonido con espacio de sobra)
         let btnPausa = this.add.image(btnSonido.x - espacioEntreBotones, margenSuperior, 'Pause')
             .setOrigin(0.5)
             .setScale(escalaBotones)
@@ -337,7 +310,6 @@ class Level1 extends Phaser.Scene {
             }
         });
 
-        // Efectos de hover
         [btnSonido, btnPausa].forEach(btn => {
             btn.on('pointerover', () => btn.setTint(0xffcc00));
             btn.on('pointerout', () => btn.clearTint());
@@ -438,15 +410,15 @@ class Level1 extends Phaser.Scene {
 
 
 // ============================================================================
-// --- CONFIGURACIÓN E INICIALIZACIÓN ---
+// --- CONFIGURACIÓN E INICIALIZACIÓN (Cambio Clave para Vercel) ---
 // ============================================================================
 const config = {
     type: Phaser.AUTO,
-    width: window.innerWidth,
-    height: window.innerHeight,
+    width: 1024,                  // Resolución interna base fija (relación de aspecto 16:9)
+    height: 576,                 // Mantiene todo controlado sin importar el monitor
     parent: "game-container",
     scale: {
-        mode: Phaser.Scale.RESIZE,
+        mode: Phaser.Scale.FIT,   // Reescalado automático inteligente para el canvas completo
         autoCenter: Phaser.Scale.CENTER_BOTH
     },
     physics: {
