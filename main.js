@@ -119,7 +119,7 @@ class MenuScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         btnHelp.on('pointerdown', () => {
-            alert("Controles: Flechas para moverte, Espacio para saltar y Z para ladrar. En el nivel 1 los gatos solo patrullaran el piso, pero luego se pondra mas dificil. Diviertete!");
+            this.scene.launch('HelpScene');
         });
 
         let btnCredits = this.add.image(width / 2, baseBotonesY + (separacion * 3), 'Credits')
@@ -128,7 +128,8 @@ class MenuScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         btnCredits.on('pointerdown', () => {
-            alert("Desarrollado por Martín - ULP 2026");
+            // Lanza la escena interna de créditos de forma superpuesta
+            this.scene.launch('CreditsScene');
         });
 
         [btnStart, btnContinue, btnHelp, btnCredits].forEach(btn => {
@@ -246,12 +247,12 @@ class Level1 extends Phaser.Scene {
         let alternarAltura = 0;
 
         while (proximoX < 10400) {
-            let bloquesIsla = Math.floor(Math.random() * 2) + 1;
+            let bloquesIsla = Math.floor(Phaser.Math.Between(1, 2));
             let alturaY = height - 130;
             if (alternarAltura === 1) alturaY = height - 220;
             if (alternarAltura === 2) alturaY = height - 310;
             diseñoNivel.push({ x: proximoX, y: alturaY, bloques: bloquesIsla });
-            proximoX += Math.floor(Math.random() * 80) + 260; 
+            proximoX += Phaser.Math.Between(260, 340); 
             alternarAltura = (alternarAltura + 1) % 3;
         }
 
@@ -337,15 +338,14 @@ class Level1 extends Phaser.Scene {
         this.physics.add.overlap(this.mocca, this.gatos, this.hitGato, null, this);
 
         // ====================================================================
-        // --- BOTONES UI (AJUSTADOS: MÁS PEQUEÑOS Y MÁS JUNTOS) ---
+        // --- BOTONES UI ---
         // ====================================================================
         const factorUI = height / 768; 
         const escalaBotonesUI = 0.25 * factorUI; 
         const margenDerecho = 50 * factorUI;
         const margenSuperior = 45 * factorUI;
-        const espacioEntreBotones = 65 * factorUI; // Reducido de 110 a 65 para acercarlos
+        const espacioEntreBotones = 65 * factorUI; 
 
-        // Botón Sonido
         this.btnSonido = this.add.image(width - margenDerecho, margenSuperior, audioManager.isMuted(this) ? 'Mute' : 'Unmute')
             .setOrigin(0.5)
             .setScale(escalaBotonesUI)
@@ -358,7 +358,6 @@ class Level1 extends Phaser.Scene {
             this.btnSonido.setTexture(nuevoMute ? 'Mute' : 'Unmute');
         });
 
-        // Botón Pausa
         this.btnPausa = this.add.image(this.btnSonido.x - espacioEntreBotones, margenSuperior, 'Pause')
             .setOrigin(0.5)
             .setScale(escalaBotonesUI)
@@ -366,20 +365,15 @@ class Level1 extends Phaser.Scene {
             .setScrollFactor(0); 
 
         this.btnPausa.on('pointerdown', () => {
-            // 1. Pausamos por completo la ejecución y físicas de Level1
             this.scene.pause('Level1');
-            
-            // 2. Lanzamos la escena del menú de pausa en paralelo (por encima)
             this.scene.launch('PauseScene');
         });
 
-        // Efecto visual de Hover
         [this.btnSonido, this.btnPausa].forEach(btn => {
             btn.on('pointerover', () => btn.setTint(0xffcc00));
             btn.on('pointerout', () => btn.clearTint());
         });
 
-        // --- MANEJO DE RESIZE ---
         this.scale.on('resize', (gameSize) => {
             const w = gameSize.width;
             const h = gameSize.height;
@@ -387,7 +381,7 @@ class Level1 extends Phaser.Scene {
             const eBotones = 0.25 * fUI;
             const mDerecho = 50 * fUI;
             const mSuperior = 45 * fUI;
-            const eEntre = 65 * fUI; // Ajustado también aquí para el resize
+            const eEntre = 65 * fUI; 
 
             this.physics.world.setBounds(0, 0, this.longitudNivel, h);
             
@@ -399,7 +393,6 @@ class Level1 extends Phaser.Scene {
                 this.fondoBosque.tileScaleY = fEscala;
             }
             
-            // Reposicionar botones dinámicamente
             this.btnSonido.setPosition(w - mDerecho, mSuperior).setScale(eBotones);
             this.btnPausa.setPosition(this.btnSonido.x - eEntre, mSuperior).setScale(eBotones);
         });
@@ -490,8 +483,9 @@ class Level1 extends Phaser.Scene {
     }
 }
 
+
 // ============================================================================
-// --- ESCENA: MENÚ DE PAUSA SUPERPUESTO (AJUSTADA Y CORREGIDA) ---
+// --- ESCENA: MENÚ DE PAUSA SUPERPUESTO ---
 // ============================================================================
 class PauseScene extends Phaser.Scene {
     constructor() {
@@ -506,73 +500,164 @@ class PauseScene extends Phaser.Scene {
         const { width, height } = this.scale;
         const baseScale = height / 768;
 
-        // 1. Fondo semi-transparente para oscurecer el juego de fondo
         let fondoOscuro = this.add.graphics();
-        fondoOscuro.fillStyle(0x000000, 0.6); // Negro con 60% de opacidad
+        fondoOscuro.fillStyle(0x000000, 0.6); 
         fondoOscuro.fillRect(0, 0, width, height);
 
-        // 2. Cartel de Pausa Personalizado (Escala reducida para que no tape todo)
         let imgPausa = this.add.image(width / 2, height * 0.24, 'pause_img')
             .setOrigin(0.5)
-            .setScale(0.28 * baseScale); // Reducido de 0.45 a 0.28 para hacerlo más pequeño
+            .setScale(0.28 * baseScale); 
 
-        // 3. Configuración de Botones (Más abajo para evitar superposición con el huesito)
         const escalaBotones = 0.4 * baseScale; 
         const separacion = 60 * baseScale;    
-        const baseBotonesY = height * 0.60; // Bajado a 0.60 para dar el espacio perfecto
+        const baseBotonesY = height * 0.60; 
 
-        // Botón Continuar (Resume)
         let btnResume = this.add.image(width / 2, baseBotonesY, 'Continue')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
 
         btnResume.on('pointerdown', () => {
-            this.reproducirClick();
             this.scene.stop();
             this.scene.resume('Level1');
         });
 
-        // Botón Reiniciar (Restart)
         let btnRestart = this.add.image(width / 2, baseBotonesY + separacion, 'Restart')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
 
         btnRestart.on('pointerdown', () => {
-            this.reproducirClick();
             this.scene.stop();
             this.scene.start('Level1'); 
         });
 
-        // Botón Salir (Exit)
         let btnExit = this.add.image(width / 2, baseBotonesY + (separacion * 2), 'Exit')
             .setOrigin(0.5)
             .setScale(escalaBotones)
             .setInteractive({ useHandCursor: true });
 
         btnExit.on('pointerdown', () => {
-            this.reproducirClick();
             this.scene.stop();
             this.scene.stop('Level1');
             this.scene.start('MenuScene'); 
         });
 
-        // Efecto hover para todos los botones
         [btnResume, btnRestart, btnExit].forEach(btn => {
             btn.on('pointerover', () => btn.setTint(0xffcc00));
             btn.on('pointerout', () => btn.clearTint());
         });
 
-        // Manejo de Resize para el menú de pausa
-        this.scale.on('resize', (gameSize) => {
+        this.scale.on('resize', () => {
             this.scene.restart(); 
         });
     }
+}
 
-    reproducirClick() {
-        // Por si quieres agregar un sonido global de click después
-        // audioManager.playEffect(...); 
+
+// ============================================================================
+// --- ESCENA: MENÚ INTERNO DE AYUDA (HELP) ---
+// ============================================================================
+class HelpScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'HelpScene' });
+    }
+
+    preload() {
+        this.load.image('help_img', 'Assets/help_img.png');
+    }
+
+    create() {
+        const { width, height } = this.scale;
+        const baseScale = height / 768;
+
+        let fondoOscuro = this.add.graphics();
+        fondoOscuro.fillStyle(0x000000, 0.7); 
+        fondoOscuro.fillRect(0, 0, width, height);
+
+        let imgHelp = this.add.image(width / 2, height * 0.28, 'help_img')
+            .setOrigin(0.5)
+            .setScale(0.32 * baseScale);
+
+        let txtControles = this.add.text(width / 2, height * 0.52, "Controles: Flechas para moverte, Espacio para saltar y Z para ladrar.", {
+            fontFamily: 'Arial',
+            fontSize: `${Math.floor(22 * baseScale)}px`,
+            fill: '#ffffff',
+            align: 'center',
+            wordWrap: { width: width * 0.8 } 
+        }).setOrigin(0.5);
+
+        let btnBack = this.add.image(width / 2, height * 0.68, 'Continue')
+            .setOrigin(0.5)
+            .setScale(0.45 * baseScale)
+            .setInteractive({ useHandCursor: true });
+
+        btnBack.on('pointerdown', () => {
+            this.scene.stop(); 
+        });
+
+        btnBack.on('pointerover', () => btnBack.setTint(0xffcc00));
+        btnBack.on('pointerout', () => btnBack.clearTint());
+
+        this.scale.on('resize', () => {
+            this.scene.restart();
+        });
+    }
+}
+
+
+// ============================================================================
+// --- ESCENA: MENÚ INTERNO DE CRÉDITOS (CREDITS) ---
+// ============================================================================
+class CreditsScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'CreditsScene' });
+    }
+
+    preload() {
+        // Carga de la imagen guardada en Assets con el nombre asignado
+        this.load.image('credits_img', 'Assets/credits_img.png');
+    }
+
+    create() {
+        const { width, height } = this.scale;
+        const baseScale = height / 768;
+
+        // Fondo semi-transparente similar al de ayuda
+        let fondoOscuro = this.add.graphics();
+        fondoOscuro.fillStyle(0x000000, 0.7); 
+        fondoOscuro.fillRect(0, 0, width, height);
+
+        // Imagen decorativa de Créditos
+        let imgCredits = this.add.image(width / 2, height * 0.28, 'credits_img')
+            .setOrigin(0.5)
+            .setScale(0.32 * baseScale);
+
+        // Texto solicitado con el autor y universidad
+        let txtCreditos = this.add.text(width / 2, height * 0.52, "Juego realizado por Martin Nahuel Becerra - Universidad de la Punta 2026", {
+            fontFamily: 'Arial',
+            fontSize: `${Math.floor(22 * baseScale)}px`,
+            fill: '#ffffff',
+            align: 'center',
+            wordWrap: { width: width * 0.8 } 
+        }).setOrigin(0.5);
+
+        // Botón Continuar para volver al menú de forma interactiva
+        let btnBack = this.add.image(width / 2, height * 0.68, 'Continue')
+            .setOrigin(0.5)
+            .setScale(0.45 * baseScale)
+            .setInteractive({ useHandCursor: true });
+
+        btnBack.on('pointerdown', () => {
+            this.scene.stop(); // Cierra los créditos y devuelve el control al menú principal
+        });
+
+        btnBack.on('pointerover', () => btnBack.setTint(0xffcc00));
+        btnBack.on('pointerout', () => btnBack.clearTint());
+
+        this.scale.on('resize', () => {
+            this.scene.restart();
+        });
     }
 }
 
@@ -596,7 +681,7 @@ const config = {
             debug: false, 
         },
     },
-    scene: [MenuScene, Level1, PauseScene] 
+    scene: [MenuScene, Level1, PauseScene, HelpScene, CreditsScene] 
 };
 
 const game = new Phaser.Game(config);
