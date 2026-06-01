@@ -687,10 +687,19 @@ class Level1 extends Phaser.Scene {
 
     this.sound.play("mocca_daño", { volume: 0.1 });
 
+    // 1. Restamos la vida en el registro
     let vidasActuales = this.registry.get("vidas") - 1;
     this.registry.set("vidas", vidasActuales);
 
+    // 2. NUEVO: Reseteamos los puntos del registro a 0
+    this.registry.set("puntos", 0);
+
+    // 3. Actualizamos los textos del HUD de inmediato
     this.actualizarTextoVidas();
+    if (this.txtHudPuntos) {
+      this.txtHudPuntos.setText("Puntos: 0");
+    }
+
     mocca.setTint(0xff0000);
 
     this.time.delayedCall(500, () => {
