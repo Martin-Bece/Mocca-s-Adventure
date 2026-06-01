@@ -101,6 +101,7 @@ class MenuScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         btnStart.on('pointerdown', () => {
+            this.registry.set('vidas', 3);
             this.scene.start('Level1');
         });
 
@@ -128,7 +129,6 @@ class MenuScene extends Phaser.Scene {
             .setInteractive({ useHandCursor: true });
 
         btnCredits.on('pointerdown', () => {
-            // Lanza la escena interna de créditos de forma superpuesta
             this.scene.launch('CreditsScene');
         });
 
@@ -176,6 +176,10 @@ class Level1 extends Phaser.Scene {
         this.isPaused = false; 
         this.longitudNivel = 12000; 
 
+        // --- CONTADORES DINÁMICOS SOBRE MOCCA ---
+        this.hudMocca = null;
+        this.txtHudVidas = null;
+
         // --- PARÁMETROS FÍSICOS DE CONTROL ---
         this.PLAYER_SPEED = 160;
         this.JUMP_VELOCITY = -380; 
@@ -200,6 +204,7 @@ class Level1 extends Phaser.Scene {
         this.load.spritesheet("gato", "Assets/BlackRun.png", { frameWidth: 48, frameHeight: 48 });
         this.load.image("background", "Assets/background.png");
 
+        this.load.image("vida_mocca", "Assets/vida_mocca.png");
         this.load.image("Continue", "Assets/Botones/Continue.png");
         this.load.image("Mute", "Assets/Botones/Mute.png");
         this.load.image("Unmute", "Assets/Botones/Unmute.png");
@@ -212,6 +217,12 @@ class Level1 extends Phaser.Scene {
 
     create() {
         const { width, height } = this.scale;
+        
+        if (!this.registry.has('vidas')) {
+            this.registry.set('vidas', 3);
+        }
+        
+        this.isRebounding = false; 
         
         this.physics.world.setBounds(0, 0, this.longitudNivel, height);
         audioManager.playMusic(this, 'level_1', { volume: 0.2, loop: true });
@@ -338,6 +349,28 @@ class Level1 extends Phaser.Scene {
         this.physics.add.overlap(this.mocca, this.gatos, this.hitGato, null, this);
 
         // ====================================================================
+        // --- MARCADOR COMPACTO DINÁMICO (FIJO ARRIBA A LA IZQUIERDA) ---
+        // ====================================================================
+        // Usamos coordenadas fijas relativas a la pantalla (X: 40, Y: 40)
+        this.hudMocca = this.add.container(40, 40);
+        this.hudMocca.setScrollFactor(0); // <--- ESTO hace que no se mueva con el mapa
+
+        let imgCabezaHud = this.add.image(0, 0, 'vida_mocca')
+            .setOrigin(0.5)
+            .setScale(1.2); 
+
+        // El texto lo movemos un poquito a la derecha de la cabecita
+        this.txtHudVidas = this.add.text(30, 0, `x ${this.registry.get('vidas')}`, {
+            fontFamily: 'Arial',
+            fontSize: '18px',
+            fill: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 3
+        }).setOrigin(0.5);
+
+        this.hudMocca.add([imgCabezaHud, this.txtHudVidas]);
+
+        // ====================================================================
         // --- BOTONES UI ---
         // ====================================================================
         const factorUI = height / 768; 
@@ -455,6 +488,12 @@ class Level1 extends Phaser.Scene {
         }
     }
 
+    actualizarTextoVidas() {
+        if (this.txtHudVidas) {
+            this.txtHudVidas.setText(`x ${this.registry.get('vidas')}`);
+        }
+    }
+
     collectBone(mocca, huesito) {
         this.sound.play("comer_hueso", { volume: 0.2 });
         huesito.disableBody(true, true);
@@ -469,17 +508,24 @@ class Level1 extends Phaser.Scene {
             this.sound.play("gato_daño", { volume: 0.1 });
             return;
         }
+
         if (this.isRebounding) return;
         this.isRebounding = true;
-        mocca.setTint(0xff0000);
-        let direccion = (mocca.x < gato.x) ? -200 : 200;
-        mocca.setVelocityX(direccion);
-        mocca.setVelocityY(-150);
-        this.time.delayedCall(400, () => {
-            this.isRebounding = false;
-            mocca.clearTint();
-        });
+
         this.sound.play('mocca_daño', { volume: 0.1 });
+
+        let vidasActuales = this.registry.get('vidas') - 1;
+        this.registry.set('vidas', vidasActuales);
+        
+        // Actualiza el indicador dinámico inmediatamente antes del cambio de escena
+        this.actualizarTextoVidas();
+
+        this.physics.pause();
+        mocca.setTint(0xff0000);
+
+        this.time.delayedCall(500, () => {
+            this.scene.start('PerderVida');
+        });
     }
 }
 
@@ -615,7 +661,6 @@ class CreditsScene extends Phaser.Scene {
     }
 
     preload() {
-        // Carga de la imagen guardada en Assets con el nombre asignado
         this.load.image('credits_img', 'Assets/credits_img.png');
     }
 
@@ -623,17 +668,14 @@ class CreditsScene extends Phaser.Scene {
         const { width, height } = this.scale;
         const baseScale = height / 768;
 
-        // Fondo semi-transparente similar al de ayuda
         let fondoOscuro = this.add.graphics();
         fondoOscuro.fillStyle(0x000000, 0.7); 
         fondoOscuro.fillRect(0, 0, width, height);
 
-        // Imagen decorativa de Créditos
         let imgCredits = this.add.image(width / 2, height * 0.28, 'credits_img')
             .setOrigin(0.5)
             .setScale(0.32 * baseScale);
 
-        // Texto solicitado con el autor y universidad
         let txtCreditos = this.add.text(width / 2, height * 0.52, "Juego realizado por Martin Nahuel Becerra - Universidad de la Punta 2026", {
             fontFamily: 'Arial',
             fontSize: `${Math.floor(22 * baseScale)}px`,
@@ -642,14 +684,13 @@ class CreditsScene extends Phaser.Scene {
             wordWrap: { width: width * 0.8 } 
         }).setOrigin(0.5);
 
-        // Botón Continuar para volver al menú de forma interactiva
         let btnBack = this.add.image(width / 2, height * 0.68, 'Continue')
             .setOrigin(0.5)
             .setScale(0.45 * baseScale)
             .setInteractive({ useHandCursor: true });
 
         btnBack.on('pointerdown', () => {
-            this.scene.stop(); // Cierra los créditos y devuelve el control al menú principal
+            this.scene.stop(); 
         });
 
         btnBack.on('pointerover', () => btnBack.setTint(0xffcc00));
@@ -657,6 +698,52 @@ class CreditsScene extends Phaser.Scene {
 
         this.scale.on('resize', () => {
             this.scene.restart();
+        });
+    }
+}
+
+// ============================================================================
+// --- ESCENA: PANTALLA INTERMEDIA AL PERDER VIDA ---
+// ============================================================================
+class PerderVida extends Phaser.Scene {
+    constructor() {
+        super({ key: 'PerderVida' });
+    }
+
+    preload() {
+        this.load.image('vida_mocca', 'Assets/vida_mocca.png');
+    }
+
+    create() {
+        const { width, height } = this.scale;
+        const baseScale = height / 768;
+
+        let fondo = this.add.graphics();
+        fondo.fillStyle(0x000000, 1);
+        fondo.fillRect(0, 0, width, height);
+
+        let vidasRestantes = this.registry.get('vidas');
+        let contenedor = this.add.container(width / 2, height / 2);
+
+        let imgMocca = this.add.image(-40 * baseScale, 0, 'vida_mocca')
+            .setOrigin(0.5)
+            .setScale(3.2 * baseScale); 
+
+        let txtVidas = this.add.text(30 * baseScale, 0, `x ${vidasRestantes}`, {
+            fontFamily: 'Arial', 
+            fontSize: `${Math.floor(48 * baseScale)}px`,
+            fill: '#ffffff',
+            align: 'center'
+        }).setOrigin(0.5);
+
+        contenedor.add([imgMocca, txtVidas]);
+
+        this.time.delayedCall(2000, () => {
+            if (vidasRestantes > 0) {
+                this.scene.start('Level1');
+            } else {
+                this.scene.start('MenuScene');
+            }
         });
     }
 }
@@ -681,7 +768,7 @@ const config = {
             debug: false, 
         },
     },
-    scene: [MenuScene, Level1, PauseScene, HelpScene, CreditsScene] 
+    scene: [MenuScene, Level1, PerderVida, PauseScene, HelpScene, CreditsScene] 
 };
 
 const game = new Phaser.Game(config);
