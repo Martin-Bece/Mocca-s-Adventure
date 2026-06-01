@@ -107,7 +107,7 @@ class MenuScene extends Phaser.Scene {
 
     btnStart.on("pointerdown", () => {
       this.registry.set("vidas", 3);
-      this.registry.set("puntos", 0); // <--- Resetea el puntaje al iniciar nueva partida
+      this.registry.set("puntos", 0);
       this.scene.start("Level1");
     });
 
@@ -181,17 +181,17 @@ class Level1 extends Phaser.Scene {
     this.platforms = null;
     this.gatos = null;
     this.isbarking = false;
+    this.canBark = true; // NUEVO: Control de disponibilidad del ladrido
+    this.barkCooldownProgress = 1; // NUEVO: Estado de carga de la barra (0 a 1)
     this.isRebounding = false;
     this.isPaused = false;
     this.longitudNivel = 12000;
 
-    // --- CONTADORES DINÁMICOS SOBRE MOCCA ---
-    // (Ahora fijos arriba a la izquierda gracias a setScrollFactor)
     this.hudMocca = null;
     this.txtHudVidas = null;
     this.txtHudPuntos = null;
+    this.barLadridoGraphics = null; // NUEVO: Gráfico dinámico de la barra de recarga
 
-    // --- PARÁMETROS FÍSICOS DE CONTROL ---
     this.PLAYER_SPEED = 160;
     this.JUMP_VELOCITY = -380;
     this.GRAVITY = 500;
@@ -256,6 +256,8 @@ class Level1 extends Phaser.Scene {
     }
 
     this.isRebounding = false;
+    this.canBark = true;
+    this.barkCooldownProgress = 1;
 
     this.physics.world.setBounds(0, 0, this.longitudNivel, height);
     audioManager.playMusic(this, "level_1", { volume: 0.2, loop: true });
@@ -341,6 +343,7 @@ class Level1 extends Phaser.Scene {
       gatoSuelo.speed = 80 + Math.random() * 40;
       gatoSuelo.distaciaPatrulla = 140;
       gatoSuelo.puntoInicialX = posX;
+      gatoSuelo.isStunned = false; // NUEVO: Bandera para saber si el gato está aturdido
       gatoSuelo.anims.play("gato_run");
       gatoSuelo.setVelocityX(gatoSuelo.speed);
     }
@@ -447,7 +450,7 @@ class Level1 extends Phaser.Scene {
     // --- MARCADOR COMPACTO DINÁMICO (FIJO ARRIBA A LA IZQUIERDA) ---
     // ====================================================================
     this.hudMocca = this.add.container(40, 40);
-    this.hudMocca.setScrollFactor(0); // Clavado en pantalla
+    this.hudMocca.setScrollFactor(0);
 
     let imgCabezaHud = this.add
       .image(0, 0, "vida_mocca")
@@ -464,7 +467,6 @@ class Level1 extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // Texto de puntuación ubicado abajo del indicador de vidas
     this.txtHudPuntos = this.add
       .text(10, 25, `Puntos: ${this.registry.get("puntos")}`, {
         fontFamily: "Arial",
@@ -475,7 +477,13 @@ class Level1 extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    this.hudMocca.add([imgCabezaHud, this.txtHudVidas, this.txtHudPuntos]);
+    // NUEVO: Gráficos de la barra de enfriamiento/recarga ubicados debajo de los puntos en el HUD
+    this.barLadridoGraphics = this.add.graphics();
+
+    this.hudMocca.add([imgCabezaHud, this.txtHudVidas, this.txtHudPuntos, this.barLadridoGraphics]);
+
+    // Dibujamos el estado inicial listo de la barra
+    this.actualizarBarraLadrido();
 
     // ====================================================================
     // --- BOTONES UI ---
@@ -552,8 +560,15 @@ class Level1 extends Phaser.Scene {
         (this.cameras.main.scrollX * 0.3) / this.fondoBosque.tileScaleX;
     }
 
+    // --- LÓGICA DE PATRULLA DE GATOS MODIFICADA ---
     this.gatos.children.iterate((gato) => {
       if (gato && gato.active && gato.body) {
+        if (gato.isStunned) {
+          // Si está aturdido, forzamos velocidad 0 y no procesamos cambios de dirección
+          gato.setVelocityX(0);
+          return;
+        }
+
         if (gato.x >= gato.puntoInicialX + gato.distaciaPatrulla) {
           gato.setVelocityX(-gato.speed);
           gato.setFlipX(true);
@@ -566,9 +581,15 @@ class Level1 extends Phaser.Scene {
 
     if (this.isRebounding || this.isbarking || this.isPaused) return;
 
-    if (Phaser.Input.Keyboard.JustDown(this.keyZ)) {
+    // --- ACTIVACIÓN DEL LADRIDO MODIFICADO CON COOLDOWN ---
+    if (Phaser.Input.Keyboard.JustDown(this.keyZ) && this.canBark) {
       this.isbarking = true;
+      this.canBark = false;
+      this.barkCooldownProgress = 0; // Se vacía la barra instantáneamente
+      this.actualizarBarraLadrido();
+
       this.sound.play("bark_sound", { volume: 0.2 });
+
       if (!this.mocca.body.onFloor() && !this.mocca.body.touching.down) {
         this.mocca.anims.play("bark_jump", true);
       } else if (this.cursors.left.isDown || this.cursors.right.isDown) {
@@ -576,9 +597,45 @@ class Level1 extends Phaser.Scene {
       } else {
         this.mocca.anims.play("bark_idle", true);
       }
+
+      // NUEVO: Chequear área de efecto frente a Mocca para aturdir gatos cercanos
+      let rangoLadrido = 160; 
+      this.gatos.children.iterate((gato) => {
+        if (gato && gato.active) {
+          let distanciaX = gato.x - this.mocca.x;
+          let distanciaY = Math.abs(gato.y - this.mocca.y);
+
+          // Verificamos proximidad en altura (Y) y cercanía horizontal (X) basada en hacia dónde mira Mocca
+          if (distanciaY < 60 && Math.abs(distanciaX) <= rangoLadrido) {
+            let mirandoDerechaYEnRango = (!this.mocca.flipX && distanciaX > 0);
+            let mirandoIzquierdaYEnRango = (this.mocca.flipX && distanciaX < 0);
+
+            if (mirandoDerechaYEnRango || mirandoIzquierdaYEnRango) {
+              this.aturdirGato(gato);
+            }
+          }
+        }
+      });
+
+      // Duración de la animación de ladrido (300ms)
       this.time.delayedCall(300, () => {
         this.isbarking = false;
       });
+
+      // NUEVO: Inicialización del Tween para recargar la barra visualmente durante 5 segundos
+      this.tweens.add({
+        targets: this,
+        barkCooldownProgress: 1,
+        duration: 5000,
+        onUpdate: () => {
+          this.actualizarBarraLadrido();
+        },
+        onComplete: () => {
+          this.canBark = true;
+          this.actualizarBarraLadrido(); // Redibuja en verde completo
+        }
+      });
+
       return;
     }
 
@@ -617,6 +674,65 @@ class Level1 extends Phaser.Scene {
     }
   }
 
+  // NUEVO: Método para procesar el aturdimiento del enemigo e indicadores visuales
+  aturdirGato(gato) {
+    gato.isStunned = true;
+    gato.setVelocityX(0);
+    gato.anims.pause(); // Pausamos sus patitas corriendo
+
+    // Cambiamos el color a azul eléctrico/celeste brillante y bajamos opacidad para el parpadeo
+    gato.setTint(0x3399ff);
+    gato.setAlpha(0.8);
+
+    // Creamos un efecto visual intermitente (parpadeo rápido)
+    let tweensEfecto = this.tweens.add({
+      targets: gato,
+      alpha: 0.4,
+      duration: 150,
+      yoyo: true,
+      repeat: 4
+    });
+
+    // Remueve el estado alterado exactamente a los 1500 milisegundos (1.5 segundos)
+    this.time.delayedCall(1500, () => {
+      if (gato && gato.active) {
+        tweensEfecto.stop();
+        gato.isStunned = false;
+        gato.clearTint(); // Limpia el color azul
+        gato.setAlpha(1);  // Reestablece opacidad completa
+        gato.anims.resume(); // Vuelve a correr
+        
+        // Reactivamos velocidad inicial hacia el lado correcto
+        let velocidadDireccion = gato.setFlipX ? -gato.speed : gato.speed;
+        gato.setVelocityX(velocidadDireccion);
+      }
+    });
+  }
+
+  // NUEVO: Función encargada de renderizar geométricamente los rectángulos del medidor de recarga
+  actualizarBarraLadrido() {
+    if (!this.barLadridoGraphics) return;
+
+    this.barLadridoGraphics.clear();
+
+    const anchoMax = 70;
+    const alto = 8;
+    const posX = -25;
+    const posY = 45;
+
+    // 1. Dibujamos el contorno negro de fondo
+    this.barLadridoGraphics.fillStyle(0x000000, 1);
+    this.barLadridoGraphics.fillRect(posX, posY, anchoMax, alto);
+
+    // 2. Definimos color según disponibilidad: Verde brillante si está listo, Celeste/Azul si carga
+    let colorBarra = this.canBark ? 0x00ff00 : 0x00a8ff;
+    this.barLadridoGraphics.fillStyle(colorBarra, 1);
+
+    // 3. Dibujamos el relleno en base al progreso lineal escalado
+    let anchoActual = anchoMax * this.barkCooldownProgress;
+    this.barLadridoGraphics.fillRect(posX, posY, anchoActual, alto);
+  }
+
   actualizarTextoVidas() {
     if (this.txtHudVidas) {
       this.txtHudVidas.setText(`x ${this.registry.get("vidas")}`);
@@ -637,8 +753,6 @@ class Level1 extends Phaser.Scene {
     let vidasPorNuevosPuntos = Math.floor(nuevosPuntos / 1000);
 
     if (vidasPorNuevosPuntos > vidasPorPuntosActuales) {
-      // Usamos un pequeño delay de 10ms para sacar la lógica del frame físico actual
-      // Esto evita que Phaser choque con colisiones simultáneas (como tocar un gato y llegar a 1000 a la vez)
       this.time.delayedCall(10, () => {
         let vidasActuales = this.registry.get("vidas") + 1;
         this.registry.set("vidas", vidasActuales);
@@ -649,7 +763,6 @@ class Level1 extends Phaser.Scene {
           this.sound.play("obtener_vida", { volume: 0.2 });
         }
 
-        // Animación limpia para avisarle al jugador que ganó una vida sin romper la pantalla
         this.tweens.add({
           targets: this.txtHudVidas,
           scale: 1.6,
@@ -665,13 +778,13 @@ class Level1 extends Phaser.Scene {
     this.sound.play("comer_hueso", { volume: 0.2 });
     huesito.disableBody(true, true);
     huesito.destroy();
-    this.sumarPuntos(10); // +10 por huesito
+    this.sumarPuntos(10);
   }
 
   hitGato(mocca, gato) {
-    // Si la escena ya se está apagando o Mocca ya rebotó, salir inmediatamente
     if (this.isRebounding || !gato.active) return;
 
+    // Si el gato está stuneado, igual lo destruimos si le saltamos encima desde arriba
     if (mocca.body.velocity.y > 0 && mocca.y < gato.y) {
       gato.disableBody(true, true);
       gato.destroy();
@@ -681,20 +794,19 @@ class Level1 extends Phaser.Scene {
       return;
     }
 
-    // Bloqueo inmediato para evitar que entre dos veces seguidas en el mismo frame
+    // NUEVO CONTROL: Si el gato está aturdido/stuneado, Mocca NO recibe daño al tocarlo de costado
+    if (gato.isStunned) return;
+
     this.isRebounding = true;
-    this.physics.pause(); // Pausa las físicas del mapa de inmediato
+    this.physics.pause();
 
     this.sound.play("mocca_daño", { volume: 0.1 });
 
-    // 1. Restamos la vida en el registro
     let vidasActuales = this.registry.get("vidas") - 1;
     this.registry.set("vidas", vidasActuales);
 
-    // 2. NUEVO: Reseteamos los puntos del registro a 0
     this.registry.set("puntos", 0);
 
-    // 3. Actualizamos los textos del HUD de inmediato
     this.actualizarTextoVidas();
     if (this.txtHudPuntos) {
       this.txtHudPuntos.setText("Puntos: 0");
