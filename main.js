@@ -170,19 +170,22 @@ class MenuScene extends Phaser.Scene {
 }
 
 // ============================================================================
-// --- ESCENA: NIVEL 1 (MAPA COMPLETO) ---
+// --- CLASE BASE REUTILIZABLE PARA TODOS LOS NIVELES ---
 // ============================================================================
-class Level1 extends Phaser.Scene {
-  constructor() {
-    super({ key: "Level1" });
+class EscenaBase extends Phaser.Scene {
+  constructor(key) {
+    super({ key: key });
+    
+    // Variables de control compartidas
     this.mocca = null;
     this.cursors = null;
     this.ground = null;
     this.platforms = null;
     this.gatos = null;
+    
     this.isbarking = false;
-    this.canBark = true; // NUEVO: Control de disponibilidad del ladrido
-    this.barkCooldownProgress = 1; // NUEVO: Estado de carga de la barra (0 a 1)
+    this.canBark = true;
+    this.barkCooldownProgress = 1;
     this.isRebounding = false;
     this.isPaused = false;
     this.longitudNivel = 12000;
@@ -190,33 +193,279 @@ class Level1 extends Phaser.Scene {
     this.hudMocca = null;
     this.txtHudVidas = null;
     this.txtHudPuntos = null;
-    this.barLadridoGraphics = null; // NUEVO: Gráfico dinámico de la barra de recarga
+    this.barLadridoGraphics = null;
 
+    // Configuración física por defecto
     this.PLAYER_SPEED = 160;
     this.JUMP_VELOCITY = -380;
     this.GRAVITY = 500;
   }
 
+  // Inicialización básica del estado del juego y HUD común
+  crearBaseComun(nombreMusica) {
+    const { width, height } = this.scale;
+
+    if (!this.registry.has("vidas")) this.registry.set("vidas", 3);
+    if (!this.registry.has("puntos")) this.registry.set("puntos", 0);
+
+    this.isRebounding = false;
+    this.canBark = true;
+    this.barkCooldownProgress = 1;
+
+    this.physics.world.setBounds(0, 0, this.longitudNivel, height);
+    audioManager.playMusic(this, nombreMusica, { volume: 0.2, loop: true });
+
+    // Configuración común del input de teclado
+    this.cursors = this.input.keyboard.createCursorKeys();
+    this.keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+
+    // Inicializar el HUD
+    this.crearHUD();
+  }
+
+  crearHUD() {
+    this.hudMocca = this.add.container(40, 40).setScrollFactor(0);
+
+    let imgCabezaHud = this.add.image(0, 0, "vida_mocca").setOrigin(0.5).setScale(1.2);
+
+    this.txtHudVidas = this.add.text(30, 0, `x ${this.registry.get("vidas")}`, {
+      fontFamily: "Arial", fontSize: "18px", fill: "#ffffff", stroke: "#000000", strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    this.txtHudPuntos = this.add.text(10, 25, `Puntos: ${this.registry.get("puntos")}`, {
+      fontFamily: "Arial", fontSize: "16px", fill: "#ffff00", stroke: "#000000", strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    this.barLadridoGraphics = this.add.graphics();
+    this.hudMocca.add([imgCabezaHud, this.txtHudVidas, this.txtHudPuntos, this.barLadridoGraphics]);
+
+    this.actualizarBarraLadrido();
+  }
+
+  update() {
+    if (this.fondoBosque) {
+      this.fondoBosque.tilePositionX = (this.cameras.main.scrollX * 0.3) / this.fondoBosque.tileScaleX;
+    }
+
+    // --- LOGICA DE PATRULLA DE GATOS ---
+    if (this.gatos) {
+      this.gatos.children.iterate((gato) => {
+        if (gato && gato.active && gato.body) {
+          if (gato.isStunned) {
+            gato.setVelocityX(0);
+            return;
+          }
+          if (gato.x >= gato.puntoInicialX + gato.distaciaPatrulla) {
+            gato.setVelocityX(-gato.speed);
+            gato.setFlipX(true);
+          } else if (gato.x <= gato.puntoInicialX - gato.distaciaPatrulla) {
+            gato.setVelocityX(gato.speed);
+            gato.setFlipX(false);
+          }
+        }
+      });
+    }
+
+    // --- ACCIONES Y MOVIMIENTOS DE MOCCA ---
+    if (this.mocca && this.mocca.active) {
+      this.manejarMovimientoMocca();
+    }
+  }
+
+  manejarMovimientoMocca() {
+    if (this.isRebounding || this.isbarking || this.isPaused) return;
+
+    // --- ACTIVACIÓN DEL LADRIDO ---
+    if (Phaser.Input.Keyboard.JustDown(this.keyZ) && this.canBark) {
+      this.isbarking = true;
+      this.canBark = false;
+      this.barkCooldownProgress = 0;
+      this.actualizarBarraLadrido();
+
+      this.sound.play("bark_sound", { volume: 0.2 });
+
+      if (!this.mocca.body.onFloor() && !this.mocca.body.touching.down) {
+        this.mocca.anims.play("bark_jump", true);
+      } else if (this.cursors.left.isDown || this.cursors.right.isDown) {
+        this.mocca.anims.play("bark_run", true);
+      } else {
+        this.mocca.anims.play("bark_idle", true);
+      }
+
+      let rangoLadrido = 160; 
+      this.gatos.children.iterate((gato) => {
+        if (gato && gato.active) {
+          let distanciaX = gato.x - this.mocca.x;
+          let distanciaY = Math.abs(gato.y - this.mocca.y);
+
+          if (distanciaY < 60 && Math.abs(distanciaX) <= rangoLadrido) {
+            let mirandoDerechaYEnRango = (!this.mocca.flipX && distanciaX > 0);
+            let mirandoIzquierdaYEnRango = (this.mocca.flipX && distanciaX < 0);
+
+            if (mirandoDerechaYEnRango || mirandoIzquierdaYEnRango) {
+              this.aturdirGato(gato);
+            }
+          }
+        }
+      });
+
+      this.time.delayedCall(300, () => { this.isbarking = false; });
+
+      this.tweens.add({
+        targets: this,
+        barkCooldownProgress: 1,
+        duration: 5000,
+        onUpdate: () => { this.actualizarBarraLadrido(); },
+        onComplete: () => {
+          this.canBark = true;
+          this.actualizarBarraLadrido();
+        }
+      });
+      return;
+    }
+
+    // --- CORRER ---
+    if (this.cursors.left.isDown) {
+      this.mocca.setVelocityX(-this.PLAYER_SPEED);
+      this.mocca.setFlipX(true);
+      if (this.mocca.body.onFloor() || this.mocca.body.touching.down) this.mocca.anims.play("run", true);
+    } else if (this.cursors.right.isDown) {
+      this.mocca.setVelocityX(this.PLAYER_SPEED);
+      this.mocca.setFlipX(false);
+      if (this.mocca.body.onFloor() || this.mocca.body.touching.down) this.mocca.anims.play("run", true);
+    } else {
+      this.mocca.setVelocityX(0);
+      if (this.mocca.body.onFloor() || this.mocca.body.touching.down) this.mocca.anims.play("idle", true);
+    }
+
+    // --- SALTAR ---
+    if (this.cursors.space.isDown && (this.mocca.body.onFloor() || this.mocca.body.touching.down)) {
+      this.mocca.setVelocityY(this.JUMP_VELOCITY);
+      this.mocca.anims.play("jump", true);
+      this.sound.play("mocca_jump", { volume: 0.3 });
+    }
+
+    if (!this.mocca.body.onFloor() && !this.mocca.body.touching.down && this.mocca.anims.currentAnim.key !== "jump" && !this.isbarking) {
+      this.mocca.anims.play("jump", true);
+    }
+  }
+
+  aturdirGato(gato) {
+    gato.velocidadPrevia = gato.body.velocity.x !== 0 ? gato.body.velocity.x : -gato.speed;
+    gato.isStunned = true;
+    gato.setVelocityX(0);
+    gato.anims.pause();
+    gato.setTint(0x3399ff);
+    gato.setAlpha(0.8);
+
+    let tweensEfecto = this.tweens.add({
+      targets: gato, alpha: 0.4, duration: 150, yoyo: true, repeat: 4
+    });
+
+    this.time.delayedCall(1500, () => {
+      if (gato && gato.active) {
+        tweensEfecto.stop();
+        gato.isStunned = false;
+        gato.clearTint();
+        gato.setAlpha(1);  
+        gato.anims.resume();
+        gato.setVelocityX(gato.velocidadPrevia);
+      }
+    });
+  }
+
+  actualizarBarraLadrido() {
+    if (!this.barLadridoGraphics) return;
+    this.barLadridoGraphics.clear();
+    const anchoMax = 70; const alto = 8; const posX = -25; const posY = 45;
+
+    this.barLadridoGraphics.fillStyle(0x000000, 1);
+    this.barLadridoGraphics.fillRect(posX, posY, anchoMax, alto);
+
+    let colorBarra = this.canBark ? 0x00ff00 : 0x00a8ff;
+    this.barLadridoGraphics.fillStyle(colorBarra, 1);
+
+    let anchoActual = anchoMax * this.barkCooldownProgress;
+    this.barLadridoGraphics.fillRect(posX, posY, anchoActual, alto);
+  }
+
+  actualizarTextoVidas() {
+    if (this.txtHudVidas) this.txtHudVidas.setText(`x ${this.registry.get("vidas")}`);
+  }
+
+  sumarPuntos(cantidad) {
+    let puntosActuales = this.registry.get("puntos");
+    let nuevosPuntos = puntosActuales + cantidad;
+    this.registry.set("puntos", nuevosPuntos);
+
+    if (this.txtHudPuntos) this.txtHudPuntos.setText(`Puntos: ${nuevosPuntos}`);
+
+    let vidasPorPuntosActuales = Math.floor(puntosActuales / 1000);
+    let vidasPorNuevosPuntos = Math.floor(nuevosPuntos / 1000);
+
+    if (vidasPorNuevosPuntos > vidasPorPuntosActuales) {
+      this.time.delayedCall(10, () => {
+        let vidasActuales = this.registry.get("vidas") + 1;
+        this.registry.set("vidas", vidasActuales);
+        this.actualizarTextoVidas();
+        if (this.sound.get("obtener_vida")) this.sound.play("obtener_vida", { volume: 0.2 });
+      });
+    }
+  }
+
+  collectBone(mocca, huesito) {
+    this.sound.play("comer_hueso", { volume: 0.2 });
+    huesito.disableBody(true, true);
+    huesito.destroy();
+    this.sumarPuntos(10);
+  }
+
+  hitGato(mocca, gato) {
+    if (this.isRebounding || !gato.active) return;
+
+    if (mocca.body.velocity.y > 0 && mocca.y < gato.y) {
+      gato.disableBody(true, true);
+      gato.destroy();
+      mocca.setVelocityY(-300);
+      this.sound.play("gato_daño", { volume: 0.1 });
+      this.sumarPuntos(50);
+      return;
+    }
+
+    if (gato.isStunned) return;
+
+    this.isRebounding = true;
+    this.physics.pause();
+    this.sound.play("mocca_daño", { volume: 0.1 });
+
+    let vidasActuales = this.registry.get("vidas") - 1;
+    this.registry.set("vidas", vidasActuales);
+    this.registry.set("puntos", 0);
+
+    this.actualizarTextoVidas();
+    if (this.txtHudPuntos) this.txtHudPuntos.setText("Puntos: 0");
+
+    mocca.setTint(0xff0000);
+    this.time.delayedCall(500, () => { this.scene.start("PerderVida"); });
+  }
+}
+
+// ============================================================================
+// --- ESCENA: NIVEL 1 (EXTIENDE DE ESCENA BASE) ---
+// ============================================================================
+class Level1 extends EscenaBase {
+  constructor() {
+    super("Level1"); // Le pasa la clave única a la EscenaBase
+  }
+
   preload() {
-    this.load.spritesheet("mocca", "Assets/Mocca_Idle.png", {
-      frameWidth: 64,
-      frameHeight: 64,
-    });
-    this.load.spritesheet("mocca_run", "Assets/Mocca_run_right.png", {
-      frameWidth: 64,
-      frameHeight: 64,
-    });
-    this.load.spritesheet("mocca_jump", "Assets/Mocca_jump.png", {
-      frameWidth: 64,
-      frameHeight: 64,
-    });
-    this.load.spritesheet("mocca_bark", "Assets/Mocca_bark.png", {
-      frameWidth: 64,
-      frameHeight: 64,
-    });
+    // Carga de assets de Mocca, enemigos y sonidos compartidos
+    this.load.spritesheet("mocca", "Assets/Mocca_Idle.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("mocca_run", "Assets/Mocca_run_right.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("mocca_jump", "Assets/Mocca_jump.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("mocca_bark", "Assets/Mocca_bark.png", { frameWidth: 64, frameHeight: 64 });
     this.load.image("ground", "Assets/ground.png");
     this.load.image("cloud_platform", "Assets/plataformaAire.png");
-
     this.load.audio("bark_sound", "Audio/bark_sound.mp3");
     this.load.audio("comer_hueso", "Audio/comer_hueso.mp3");
     this.load.audio("obtener_vida", "Audio/getLife.mp3");
@@ -224,83 +473,68 @@ class Level1 extends Phaser.Scene {
     this.load.audio("gato_daño", "Audio/gato_daño.mp3");
     this.load.audio("level_1", "Audio/level_1.mp3");
     this.load.audio("mocca_jump", "Audio/mocca_jump.wav");
-    this.load.spritesheet("huesito", "Assets/Huesito.png", {
-      frameWidth: 64,
-      frameHeight: 64,
-    });
-    this.load.spritesheet("gato", "Assets/BlackRun.png", {
-      frameWidth: 48,
-      frameHeight: 48,
-    });
+    this.load.spritesheet("huesito", "Assets/Huesito.png", { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet("gato", "Assets/BlackRun.png", { frameWidth: 48, frameHeight: 48 });
     this.load.image("background", "Assets/background.png");
-
     this.load.image("vida_mocca", "Assets/vida_mocca.png");
-    this.load.image("Continue", "Assets/Botones/Continue.png");
     this.load.image("Mute", "Assets/Botones/Mute.png");
     this.load.image("Unmute", "Assets/Botones/Unmute.png");
-    this.load.image("Restart", "Assets/Botones/Restart.png");
-    this.load.image("Exit", "Assets/Botones/Exit.png");
-    this.load.image("Resume", "Assets/Botones/Pause.png");
     this.load.image("Pause", "Assets/Botones/Resume.png");
-    this.load.image("Help", "Assets/Botones/Help.png");
   }
 
   create() {
     const { width, height } = this.scale;
 
-    if (!this.registry.has("vidas")) {
-      this.registry.set("vidas", 3);
-    }
-    if (!this.registry.has("puntos")) {
-      this.registry.set("puntos", 0);
-    }
+    // Ejecuta la inicialización de inputs, variables y HUD en la clase Base
+    this.crearBaseComun("level_1");
 
-    this.isRebounding = false;
-    this.canBark = true;
-    this.barkCooldownProgress = 1;
-
-    this.physics.world.setBounds(0, 0, this.longitudNivel, height);
-    audioManager.playMusic(this, "level_1", { volume: 0.2, loop: true });
-
-    this.fondoBosque = this.add.tileSprite(0, 0, width, height, "background");
-    this.fondoBosque.setOrigin(0, 0);
-    this.fondoBosque.setScrollFactor(0);
-
+    // --- CONSTRUCCIÓN DEL FONDO PARALLAX ---
+    this.fondoBosque = this.add.tileSprite(0, 0, width, height, "background").setOrigin(0, 0).setScrollFactor(0);
     let texturaOriginal = this.textures.get("background").getSourceImage();
-    let escalaInternaY = height / texturaOriginal.height;
-    let escalaInternaX = width / texturaOriginal.width;
-    let factorEscalaFinal = Math.max(escalaInternaX, escalaInternaY);
-
+    let factorEscalaFinal = Math.max(width / texturaOriginal.width, height / texturaOriginal.height);
     this.fondoBosque.tileScaleX = factorEscalaFinal;
     this.fondoBosque.tileScaleY = factorEscalaFinal;
 
+    // --- CREACIÓN DEL SUELO ---
     this.ground = this.physics.add.staticGroup();
     for (let x = 0; x < this.longitudNivel; x += 128) {
-      let tile = this.ground
-        .create(x, height - 32, "ground")
-        .setScale(2)
-        .refreshBody();
+      let tile = this.ground.create(x, height - 32, "ground").setScale(2).refreshBody();
       tile.body.setSize(128, 45);
       tile.body.setOffset(0, 19);
     }
 
+    // --- GRUPOS ---
     this.platforms = this.physics.add.staticGroup();
     let bones = this.physics.add.group();
     this.gatos = this.physics.add.group();
 
-    this.anims.create({
-      key: "huesito_rotate",
-      frames: this.anims.generateFrameNumbers("huesito", { start: 0, end: 4 }),
-      frameRate: 7,
-      repeat: -1,
-    });
-    this.anims.create({
-      key: "gato_run",
-      frames: this.anims.generateFrameNumbers("gato", { start: 0, end: 5 }),
-      frameRate: 7,
-      repeat: -1,
-    });
+    // --- ANIMACIONES ESPECÍFICAS DE ELEMENTOS ---
+    if (!this.anims.exists("huesito_rotate")) {
+      this.anims.create({
+        key: "huesito_rotate",
+        frames: this.anims.generateFrameNumbers("huesito", { start: 0, end: 4 }),
+        frameRate: 7, repeat: -1
+      });
+    }
+    if (!this.anims.exists("gato_run")) {
+      this.anims.create({
+        key: "gato_run",
+        frames: this.anims.generateFrameNumbers("gato", { start: 0, end: 5 }),
+        frameRate: 7, repeat: -1
+      });
+    }
 
+    // --- ANIMACIONES DE MOCCA ---
+    if (!this.anims.exists("idle")) {
+      this.anims.create({ key: "idle", frames: this.anims.generateFrameNumbers("mocca", { start: 0, end: 1 }), frameRate: 7, repeat: -1 });
+      this.anims.create({ key: "run", frames: this.anims.generateFrameNumbers("mocca_run", { start: 0, end: 2 }), frameRate: 7, repeat: -1 });
+      this.anims.create({ key: "jump", frames: this.anims.generateFrameNumbers("mocca_jump", { start: 0, end: 3 }), frameRate: 2, repeat: 0 });
+      this.anims.create({ key: "bark_idle", frames: this.anims.generateFrameNumbers("mocca_bark", { start: 0, end: 0 }), frameRate: 1, repeat: 0 });
+      this.anims.create({ key: "bark_run", frames: this.anims.generateFrameNumbers("mocca_bark", { start: 1, end: 1 }), frameRate: 1, repeat: 0 });
+      this.anims.create({ key: "bark_jump", frames: this.anims.generateFrameNumbers("mocca_bark", { start: 2, end: 2 }), frameRate: 1, repeat: 0 });
+    }
+
+    // --- MAPEO DE PLATAFORMAS (DISEÑO DEL NIVEL 1) ---
     const diseñoNivel = [];
     let proximoX = 400;
     let alternarAltura = 0;
@@ -333,177 +567,60 @@ class Level1 extends Phaser.Scene {
       }
     });
 
+    // --- INSTANCIACIÓN DE ENEMIGOS EN NIVEL 1 ---
     for (let posX = 600; posX < 10300; posX += 450) {
-      let gatoSuelo = this.gatos
-        .create(posX, height - 150, "gato")
-        .setScale(1.5);
+      let gatoSuelo = this.gatos.create(posX, height - 150, "gato").setScale(1.5);
       gatoSuelo.body.setSize(35, 22);
       gatoSuelo.body.setOffset(6, 26);
       gatoSuelo.setCollideWorldBounds(true);
       gatoSuelo.speed = 80 + Math.random() * 40;
       gatoSuelo.distaciaPatrulla = 140;
       gatoSuelo.puntoInicialX = posX;
-      gatoSuelo.isStunned = false; // NUEVO: Bandera para saber si el gato está aturdido
+      gatoSuelo.isStunned = false;
       gatoSuelo.anims.play("gato_run");
       gatoSuelo.setVelocityX(gatoSuelo.speed);
     }
 
-    this.mocca = this.physics.add
-      .sprite(100, height - 100, "mocca")
-      .setScale(1.5);
+    // --- INSTANCIACIÓN DEL JUGADOR ---
+    this.mocca = this.physics.add.sprite(100, height - 100, "mocca").setScale(1.5);
     this.mocca.body.setSize(50, 35);
     this.mocca.body.setOffset(8, 12);
+    this.mocca.setCollideWorldBounds(true);
+    this.mocca.anims.play("idle");
 
+    // --- CÁMARAS ---
     this.cameras.main.startFollow(this.mocca, true, 0.05, 0.05);
     this.cameras.main.setBounds(0, 0, this.longitudNivel, height);
 
+    // --- COLISIONES ---
     this.physics.add.collider(this.mocca, this.ground);
-    this.platformCollider = this.physics.add.collider(
-      this.mocca,
-      this.platforms,
-      null,
-      (player, platform) => {
+    this.physics.add.collider(this.gatos, this.ground);
+    this.physics.add.overlap(this.mocca, bones, this.collectBone, null, this);
+    this.physics.add.overlap(this.mocca, this.gatos, this.hitGato, null, this);
+    
+    this.physics.add.collider(this.mocca, this.platforms, null, (player, platform) => {
         if (this.cursors.down.isDown) return false;
         return true;
-      },
-      this,
-    );
+    }, this);
 
-    this.mocca.setCollideWorldBounds(true);
-    this.cursors = this.input.keyboard.createCursorKeys();
-
-    this.anims.create({
-      key: "idle",
-      frames: this.anims.generateFrameNumbers("mocca", { start: 0, end: 1 }),
-      frameRate: 7,
-      repeat: -1,
-    });
-    this.anims.create({
-      key: "run",
-      frames: this.anims.generateFrameNumbers("mocca_run", {
-        start: 0,
-        end: 2,
-      }),
-      frameRate: 7,
-      repeat: -1,
-    });
-    this.anims.create({
-      key: "jump",
-      frames: this.anims.generateFrameNumbers("mocca_jump", {
-        start: 0,
-        end: 3,
-      }),
-      frameRate: 2,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "bark_idle",
-      frames: this.anims.generateFrameNumbers("mocca_bark", {
-        start: 0,
-        end: 0,
-      }),
-      frameRate: 1,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "bark_run",
-      frames: this.anims.generateFrameNumbers("mocca_bark", {
-        start: 1,
-        end: 1,
-      }),
-      frameRate: 1,
-      repeat: 0,
-    });
-    this.anims.create({
-      key: "bark_jump",
-      frames: this.anims.generateFrameNumbers("mocca_bark", {
-        start: 2,
-        end: 2,
-      }),
-      frameRate: 1,
-      repeat: 0,
-    });
-
-    this.keyZ = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
-    this.mocca.anims.play("idle");
-
+    // Animación de los huesitos flotando
     bones.children.iterate((huesito) => {
       if (huesito) {
         huesito.anims.play("huesito_rotate");
         huesito.body.setSize(30, 30);
         this.tweens.add({
-          targets: huesito,
-          y: huesito.y - 12,
-          duration: 1200 + Math.random() * 400,
-          ease: "Sine.easeInOut",
-          yoyo: true,
-          repeat: -1,
+          targets: huesito, y: huesito.y - 12, duration: 1200 + Math.random() * 400,
+          ease: "Sine.easeInOut", yoyo: true, repeat: -1
         });
       }
     });
 
-    this.physics.add.overlap(this.mocca, bones, this.collectBone, null, this);
-    this.physics.add.collider(this.gatos, this.ground);
-    this.physics.add.overlap(this.mocca, this.gatos, this.hitGato, null, this);
+    // --- BOTONES UI (AUDIO / PAUSA) ---
+    const factorUI = height / 768; const escalaBotonesUI = 0.25 * factorUI;
+    const margenDerecho = 50 * factorUI; const margenSuperior = 45 * factorUI; const espacioEntreBotones = 65 * factorUI;
 
-    // ====================================================================
-    // --- MARCADOR COMPACTO DINÁMICO (FIJO ARRIBA A LA IZQUIERDA) ---
-    // ====================================================================
-    this.hudMocca = this.add.container(40, 40);
-    this.hudMocca.setScrollFactor(0);
-
-    let imgCabezaHud = this.add
-      .image(0, 0, "vida_mocca")
-      .setOrigin(0.5)
-      .setScale(1.2);
-
-    this.txtHudVidas = this.add
-      .text(30, 0, `x ${this.registry.get("vidas")}`, {
-        fontFamily: "Arial",
-        fontSize: "18px",
-        fill: "#ffffff",
-        stroke: "#000000",
-        strokeThickness: 3,
-      })
-      .setOrigin(0.5);
-
-    this.txtHudPuntos = this.add
-      .text(10, 25, `Puntos: ${this.registry.get("puntos")}`, {
-        fontFamily: "Arial",
-        fontSize: "16px",
-        fill: "#ffff00",
-        stroke: "#000000",
-        strokeThickness: 3,
-      })
-      .setOrigin(0.5);
-
-    // NUEVO: Gráficos de la barra de enfriamiento/recarga ubicados debajo de los puntos en el HUD
-    this.barLadridoGraphics = this.add.graphics();
-
-    this.hudMocca.add([imgCabezaHud, this.txtHudVidas, this.txtHudPuntos, this.barLadridoGraphics]);
-
-    // Dibujamos el estado inicial listo de la barra
-    this.actualizarBarraLadrido();
-
-    // ====================================================================
-    // --- BOTONES UI ---
-    // ====================================================================
-    const factorUI = height / 768;
-    const escalaBotonesUI = 0.25 * factorUI;
-    const margenDerecho = 50 * factorUI;
-    const margenSuperior = 45 * factorUI;
-    const espacioEntreBotones = 65 * factorUI;
-
-    this.btnSonido = this.add
-      .image(
-        width - margenDerecho,
-        margenSuperior,
-        audioManager.isMuted(this) ? "Mute" : "Unmute",
-      )
-      .setOrigin(0.5)
-      .setScale(escalaBotonesUI)
-      .setInteractive({ useHandCursor: true })
-      .setScrollFactor(0);
+    this.btnSonido = this.add.image(width - margenDerecho, margenSuperior, audioManager.isMuted(this) ? "Mute" : "Unmute")
+      .setOrigin(0.5).setScale(escalaBotonesUI).setInteractive({ useHandCursor: true }).setScrollFactor(0);
 
     this.btnSonido.on("pointerdown", () => {
       let nuevoMute = !audioManager.isMuted(this);
@@ -511,12 +628,8 @@ class Level1 extends Phaser.Scene {
       this.btnSonido.setTexture(nuevoMute ? "Mute" : "Unmute");
     });
 
-    this.btnPausa = this.add
-      .image(this.btnSonido.x - espacioEntreBotones, margenSuperior, "Pause")
-      .setOrigin(0.5)
-      .setScale(escalaBotonesUI)
-      .setInteractive({ useHandCursor: true })
-      .setScrollFactor(0);
+    this.btnPausa = this.add.image(this.btnSonido.x - espacioEntreBotones, margenSuperior, "Pause")
+      .setOrigin(0.5).setScale(escalaBotonesUI).setInteractive({ useHandCursor: true }).setScrollFactor(0);
 
     this.btnPausa.on("pointerdown", () => {
       this.scene.pause("Level1");
@@ -528,294 +641,20 @@ class Level1 extends Phaser.Scene {
       btn.on("pointerout", () => btn.clearTint());
     });
 
+    // --- REESCALADO ---
     this.scale.on("resize", (gameSize) => {
-      const w = gameSize.width;
-      const h = gameSize.height;
-      const fUI = h / 768;
-      const eBotones = 0.25 * fUI;
-      const mDerecho = 50 * fUI;
-      const mSuperior = 45 * fUI;
-      const eEntre = 65 * fUI;
-
+      const w = gameSize.width; const h = gameSize.height;
+      const fUI = h / 768; const eBotones = 0.25 * fUI; const mDerecho = 50 * fUI; const mSuperior = 45 * fUI; const eEntre = 65 * fUI;
       this.physics.world.setBounds(0, 0, this.longitudNivel, h);
 
       if (this.fondoBosque) {
         this.fondoBosque.setSize(w, h);
         let resTex = this.textures.get("background").getSourceImage();
         let fEscala = Math.max(h / resTex.height, w / resTex.width);
-        this.fondoBosque.tileScaleX = fEscala;
-        this.fondoBosque.tileScaleY = fEscala;
+        this.fondoBosque.tileScaleX = fEscala; this.fondoBosque.tileScaleY = fEscala;
       }
-
       this.btnSonido.setPosition(w - mDerecho, mSuperior).setScale(eBotones);
-      this.btnPausa
-        .setPosition(this.btnSonido.x - eEntre, mSuperior)
-        .setScale(eBotones);
-    });
-  }
-
-  update() {
-    if (this.fondoBosque) {
-      this.fondoBosque.tilePositionX =
-        (this.cameras.main.scrollX * 0.3) / this.fondoBosque.tileScaleX;
-    }
-
-    // --- LÓGICA DE PATRULLA DE GATOS MODIFICADA ---
-    this.gatos.children.iterate((gato) => {
-      if (gato && gato.active && gato.body) {
-        if (gato.isStunned) {
-          // Si está aturdido, forzamos velocidad 0 y no procesamos cambios de dirección
-          gato.setVelocityX(0);
-          return;
-        }
-
-        if (gato.x >= gato.puntoInicialX + gato.distaciaPatrulla) {
-          gato.setVelocityX(-gato.speed);
-          gato.setFlipX(true);
-        } else if (gato.x <= gato.puntoInicialX - gato.distaciaPatrulla) {
-          gato.setVelocityX(gato.speed);
-          gato.setFlipX(false);
-        }
-      }
-    });
-
-    if (this.isRebounding || this.isbarking || this.isPaused) return;
-
-    // --- ACTIVACIÓN DEL LADRIDO MODIFICADO CON COOLDOWN ---
-    if (Phaser.Input.Keyboard.JustDown(this.keyZ) && this.canBark) {
-      this.isbarking = true;
-      this.canBark = false;
-      this.barkCooldownProgress = 0; // Se vacía la barra instantáneamente
-      this.actualizarBarraLadrido();
-
-      this.sound.play("bark_sound", { volume: 0.2 });
-
-      if (!this.mocca.body.onFloor() && !this.mocca.body.touching.down) {
-        this.mocca.anims.play("bark_jump", true);
-      } else if (this.cursors.left.isDown || this.cursors.right.isDown) {
-        this.mocca.anims.play("bark_run", true);
-      } else {
-        this.mocca.anims.play("bark_idle", true);
-      }
-
-      // NUEVO: Chequear área de efecto frente a Mocca para aturdir gatos cercanos
-      let rangoLadrido = 160; 
-      this.gatos.children.iterate((gato) => {
-        if (gato && gato.active) {
-          let distanciaX = gato.x - this.mocca.x;
-          let distanciaY = Math.abs(gato.y - this.mocca.y);
-
-          // Verificamos proximidad en altura (Y) y cercanía horizontal (X) basada en hacia dónde mira Mocca
-          if (distanciaY < 60 && Math.abs(distanciaX) <= rangoLadrido) {
-            let mirandoDerechaYEnRango = (!this.mocca.flipX && distanciaX > 0);
-            let mirandoIzquierdaYEnRango = (this.mocca.flipX && distanciaX < 0);
-
-            if (mirandoDerechaYEnRango || mirandoIzquierdaYEnRango) {
-              this.aturdirGato(gato);
-            }
-          }
-        }
-      });
-
-      // Duración de la animación de ladrido (300ms)
-      this.time.delayedCall(300, () => {
-        this.isbarking = false;
-      });
-
-      // NUEVO: Inicialización del Tween para recargar la barra visualmente durante 5 segundos
-      this.tweens.add({
-        targets: this,
-        barkCooldownProgress: 1,
-        duration: 5000,
-        onUpdate: () => {
-          this.actualizarBarraLadrido();
-        },
-        onComplete: () => {
-          this.canBark = true;
-          this.actualizarBarraLadrido(); // Redibuja en verde completo
-        }
-      });
-
-      return;
-    }
-
-    if (this.cursors.left.isDown) {
-      this.mocca.setVelocityX(-this.PLAYER_SPEED);
-      this.mocca.setFlipX(true);
-      if (this.mocca.body.onFloor() || this.mocca.body.touching.down)
-        this.mocca.anims.play("run", true);
-    } else if (this.cursors.right.isDown) {
-      this.mocca.setVelocityX(this.PLAYER_SPEED);
-      this.mocca.setFlipX(false);
-      if (this.mocca.body.onFloor() || this.mocca.body.touching.down)
-        this.mocca.anims.play("run", true);
-    } else {
-      this.mocca.setVelocityX(0);
-      if (this.mocca.body.onFloor() || this.mocca.body.touching.down)
-        this.mocca.anims.play("idle", true);
-    }
-
-    if (
-      this.cursors.space.isDown &&
-      (this.mocca.body.onFloor() || this.mocca.body.touching.down)
-    ) {
-      this.mocca.setVelocityY(this.JUMP_VELOCITY);
-      this.mocca.anims.play("jump", true);
-      this.sound.play("mocca_jump", { volume: 0.3 });
-    }
-
-    if (
-      !this.mocca.body.onFloor() &&
-      !this.mocca.body.touching.down &&
-      this.mocca.anims.currentAnim.key !== "jump" &&
-      !this.isbarking
-    ) {
-      this.mocca.anims.play("jump", true);
-    }
-  }
-
-  // NUEVO: Método para procesar el aturdimiento del enemigo e indicadores visuales
-  aturdirGato(gato) {
-    gato.isStunned = true;
-    gato.setVelocityX(0);
-    gato.anims.pause(); // Pausamos sus patitas corriendo
-
-    // Cambiamos el color a azul eléctrico/celeste brillante y bajamos opacidad para el parpadeo
-    gato.setTint(0x3399ff);
-    gato.setAlpha(0.8);
-
-    // Creamos un efecto visual intermitente (parpadeo rápido)
-    let tweensEfecto = this.tweens.add({
-      targets: gato,
-      alpha: 0.4,
-      duration: 150,
-      yoyo: true,
-      repeat: 4
-    });
-
-    // Remueve el estado alterado exactamente a los 1500 milisegundos (1.5 segundos)
-    this.time.delayedCall(1500, () => {
-      if (gato && gato.active) {
-        tweensEfecto.stop();
-        gato.isStunned = false;
-        gato.clearTint(); // Limpia el color azul
-        gato.setAlpha(1);  // Reestablece opacidad completa
-        gato.anims.resume(); // Vuelve a correr
-        
-        // Reactivamos velocidad inicial hacia el lado correcto
-        let velocidadDireccion = gato.setFlipX ? -gato.speed : gato.speed;
-        gato.setVelocityX(velocidadDireccion);
-      }
-    });
-  }
-
-  // NUEVO: Función encargada de renderizar geométricamente los rectángulos del medidor de recarga
-  actualizarBarraLadrido() {
-    if (!this.barLadridoGraphics) return;
-
-    this.barLadridoGraphics.clear();
-
-    const anchoMax = 70;
-    const alto = 8;
-    const posX = -25;
-    const posY = 45;
-
-    // 1. Dibujamos el contorno negro de fondo
-    this.barLadridoGraphics.fillStyle(0x000000, 1);
-    this.barLadridoGraphics.fillRect(posX, posY, anchoMax, alto);
-
-    // 2. Definimos color según disponibilidad: Verde brillante si está listo, Celeste/Azul si carga
-    let colorBarra = this.canBark ? 0x00ff00 : 0x00a8ff;
-    this.barLadridoGraphics.fillStyle(colorBarra, 1);
-
-    // 3. Dibujamos el relleno en base al progreso lineal escalado
-    let anchoActual = anchoMax * this.barkCooldownProgress;
-    this.barLadridoGraphics.fillRect(posX, posY, anchoActual, alto);
-  }
-
-  actualizarTextoVidas() {
-    if (this.txtHudVidas) {
-      this.txtHudVidas.setText(`x ${this.registry.get("vidas")}`);
-    }
-  }
-
-  sumarPuntos(cantidad) {
-    let puntosActuales = this.registry.get("puntos");
-    let nuevosPuntos = puntosActuales + cantidad;
-
-    this.registry.set("puntos", nuevosPuntos);
-
-    if (this.txtHudPuntos) {
-      this.txtHudPuntos.setText(`Puntos: ${nuevosPuntos}`);
-    }
-
-    let vidasPorPuntosActuales = Math.floor(puntosActuales / 1000);
-    let vidasPorNuevosPuntos = Math.floor(nuevosPuntos / 1000);
-
-    if (vidasPorNuevosPuntos > vidasPorPuntosActuales) {
-      this.time.delayedCall(10, () => {
-        let vidasActuales = this.registry.get("vidas") + 1;
-        this.registry.set("vidas", vidasActuales);
-
-        this.actualizarTextoVidas();
-
-        if (this.sound.get("obtener_vida")) {
-          this.sound.play("obtener_vida", { volume: 0.2 });
-        }
-
-        this.tweens.add({
-          targets: this.txtHudVidas,
-          scale: 1.6,
-          duration: 150,
-          yoyo: true,
-          ease: "Quad.easeInOut",
-        });
-      });
-    }
-  }
-
-  collectBone(mocca, huesito) {
-    this.sound.play("comer_hueso", { volume: 0.2 });
-    huesito.disableBody(true, true);
-    huesito.destroy();
-    this.sumarPuntos(10);
-  }
-
-  hitGato(mocca, gato) {
-    if (this.isRebounding || !gato.active) return;
-
-    // Si el gato está stuneado, igual lo destruimos si le saltamos encima desde arriba
-    if (mocca.body.velocity.y > 0 && mocca.y < gato.y) {
-      gato.disableBody(true, true);
-      gato.destroy();
-      mocca.setVelocityY(-300);
-      this.sound.play("gato_daño", { volume: 0.1 });
-      this.sumarPuntos(50);
-      return;
-    }
-
-    // NUEVO CONTROL: Si el gato está aturdido/stuneado, Mocca NO recibe daño al tocarlo de costado
-    if (gato.isStunned) return;
-
-    this.isRebounding = true;
-    this.physics.pause();
-
-    this.sound.play("mocca_daño", { volume: 0.1 });
-
-    let vidasActuales = this.registry.get("vidas") - 1;
-    this.registry.set("vidas", vidasActuales);
-
-    this.registry.set("puntos", 0);
-
-    this.actualizarTextoVidas();
-    if (this.txtHudPuntos) {
-      this.txtHudPuntos.setText("Puntos: 0");
-    }
-
-    mocca.setTint(0xff0000);
-
-    this.time.delayedCall(500, () => {
-      this.scene.start("PerderVida");
+      this.btnPausa.setPosition(this.btnSonido.x - eEntre, mSuperior).setScale(eBotones);
     });
   }
 }
