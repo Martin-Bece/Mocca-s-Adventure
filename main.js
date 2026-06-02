@@ -110,7 +110,7 @@ class MenuScene extends Phaser.Scene {
     btnStart.on("pointerdown", () => {
       this.registry.set("vidas", 3);
       this.registry.set("puntos", 0);
-      this.scene.start("Level2");
+      this.scene.start("Level1");
     });
 
     let btnContinue = this.add
