@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:3000/api';
+const API_URL = 'https://mocca-backend.onrender.com/api';
 
 export const authService = {
   // Función para registrar usuarios

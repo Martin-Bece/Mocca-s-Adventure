@@ -10,8 +10,14 @@ const { Pool } = pkg;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+app.use(cors({
+  origin: '*', // Permite que tu Live Server local y luego Vercel se conecten sin bloqueos
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
+
+app.use('/api', authRoutes);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
