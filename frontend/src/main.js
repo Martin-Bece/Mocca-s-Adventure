@@ -1,3 +1,4 @@
+import LoginScene from "./scenes/LoginScene.js";
 import MenuScene from "./scenes/MenuScene.js";
 import Level1 from "./scenes/Level1.js";
 import PerderVida from "./scenes/PerderVida.js";
@@ -15,6 +16,9 @@ const config = {
   width: window.innerWidth,
   height: window.innerHeight,
   parent: "game-container",
+  dom: {
+    createContainer: true,
+  },
   scale: {
     mode: Phaser.Scale.RESIZE,
     autoCenter: Phaser.Scale.CENTER_BOTH,
@@ -27,6 +31,7 @@ const config = {
     },
   },
   scene: [
+    LoginScene,
     MenuScene,
     Level1,
     PerderVida,
