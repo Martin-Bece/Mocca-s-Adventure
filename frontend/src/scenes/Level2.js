@@ -225,9 +225,10 @@ export default class Level2 extends EscenaBase {
 
       if (isla.ardilla) {
         let ardillaPlat = this.enemigos
-          .create(isla.x, isla.y - 45, "ardilla")
-          .setScale(1.3);
-        ardillaPlat.body.setSize(20, 20);
+          .create(isla.x, isla.y - 65, "ardilla")
+          .setScale(2.2);
+        ardillaPlat.body.setSize(22, 12);
+        ardillaPlat.body.setOffset(5, 10);
         ardillaPlat.speed = 85;
         ardillaPlat.distaciaPatrulla = anchoTotalIsla / 2;
         ardillaPlat.puntoInicialX = isla.x;
@@ -242,8 +243,9 @@ export default class Level2 extends EscenaBase {
     for (let posX = 600; posX < 10300; posX += 480) {
       let ardillaSuelo = this.enemigos
         .create(posX, height - 150, "ardilla")
-        .setScale(1.4);
-      ardillaSuelo.body.setSize(24, 20);
+        .setScale(2.2);
+      ardillaSuelo.body.setSize(22, 12);
+      ardillaSuelo.body.setOffset(5, 10);
       ardillaSuelo.setCollideWorldBounds(true);
       ardillaSuelo.speed = 110;
       ardillaSuelo.distaciaPatrulla = 130;
@@ -294,6 +296,7 @@ export default class Level2 extends EscenaBase {
     // --- COLISIONES ---
     this.physics.add.collider(this.mocca, this.ground);
     this.physics.add.collider(this.enemigos, this.ground);
+    this.physics.add.collider(this.enemigos, this.platforms);
     this.physics.add.overlap(this.mocca, bones, this.collectBone, null, this);
     this.physics.add.overlap(this.mocca, this.enemigos, this.hitEnemigo, null, this);
 
