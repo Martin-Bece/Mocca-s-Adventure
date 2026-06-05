@@ -1,5 +1,7 @@
+import { authService } from "../services/api.js";
+
 // ============================================================================
-// --- ESCENA: MENÚ DE PAUSA SUPERPUESTO (CORREGIDO) ---
+// --- ESCENA: MENÚ DE PAUSA SUPERPUESTO (SINCRO CON ESCENA BASE) ---
 // ============================================================================
 export default class PauseScene extends Phaser.Scene {
   constructor() {
@@ -7,6 +9,7 @@ export default class PauseScene extends Phaser.Scene {
   }
 
   init(data) {
+    // Recibe la clave del nivel que abrió la pausa (ej: "Level1")
     this.nivelActual = data.currentScene || "Level1";
   }
 
@@ -21,6 +24,7 @@ export default class PauseScene extends Phaser.Scene {
     const { width, height } = this.scale;
     const baseScale = height / 768;
 
+    // Fondo oscuro translúcido
     let fondoOscuro = this.add.graphics();
     fondoOscuro.fillStyle(0x000000, 0.6);
     fondoOscuro.fillRect(0, 0, width, height);
@@ -34,6 +38,7 @@ export default class PauseScene extends Phaser.Scene {
     const separacion = 60 * baseScale;
     const baseBotonesY = height * 0.6;
 
+    // --- BOTÓN: CONTINUE ---
     let btnResume = this.add
       .image(width / 2, baseBotonesY, "Continue")
       .setOrigin(0.5)
@@ -45,6 +50,7 @@ export default class PauseScene extends Phaser.Scene {
       this.scene.resume(this.nivelActual);
     });
 
+    // --- BOTÓN: RESTART ---
     let btnRestart = this.add
       .image(width / 2, baseBotonesY + separacion, "Restart")
       .setOrigin(0.5)
@@ -55,30 +61,124 @@ export default class PauseScene extends Phaser.Scene {
       this.scene.stop();
       this.scene.stop(this.nivelActual);
 
+      // Reseteamos el registry global tal como lo pide tu lógica de reinicios
       this.registry.set("puntos", 0);
-      this.registry.set("tiempo", 0);
-
+      
       this.scene.start(this.nivelActual);
     });
 
+    // --- BOTÓN: EXIT (MUESTRA SUBMENÚ DE ADVERTENCIA) ---
     let btnExit = this.add
       .image(width / 2, baseBotonesY + separacion * 2, "Exit")
       .setOrigin(0.5)
       .setScale(escalaBotones)
       .setInteractive({ useHandCursor: true });
 
+    // --- COMPONENTES DE ADVERTENCIA (OCULTOS POR DEFECTO) ---
+    let txtAdvertencia = this.add.text(width / 2, height * 0.52, 
+      "⚠️ ¡ATENCIÓN!\nSi salís ahora perderás los puntos y tiempo de este nivel.\nAl regresar, comenzarás desde el principio de esta etapa.", 
+      {
+        fontFamily: "Arial",
+        fontSize: `${20 * baseScale}px`,
+        color: "#ffffff",
+        align: "center",
+        fontStyle: "bold",
+        backgroundColor: "#111111",
+        padding: { x: 15, y: 15 },
+        stroke: "#ff0000",
+        strokeThickness: 2
+      }
+    ).setOrigin(0.5).setVisible(false);
+
+    let btnConfirmarSalir = this.add.text(width / 2 - 120 * baseScale, height * 0.68, "SALIR Y PERDER PROGRESO", {
+      fontFamily: "Arial",
+      fontSize: `${18 * baseScale}px`,
+      color: "#ff3333",
+      fontStyle: "bold",
+      backgroundColor: "#222222",
+      padding: { x: 12, y: 12 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setVisible(false);
+
+    let btnCancelarSalir = this.add.text(width / 2 + 120 * baseScale, height * 0.68, "VOLVER AL JUEGO", {
+      fontFamily: "Arial",
+      fontSize: `${18 * baseScale}px`,
+      color: "#00ff00",
+      fontStyle: "bold",
+      backgroundColor: "#222222",
+      padding: { x: 12, y: 12 }
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setVisible(false);
+
+    // --- INTERACCIÓN DE EXIT ---
     btnExit.on("pointerdown", () => {
+      // Ocultamos menú de pausa
+      btnResume.setVisible(false);
+      btnRestart.setVisible(false);
+      btnExit.setVisible(false);
+      imgPausa.setVisible(false);
+
+      // Mostramos advertencia
+      txtAdvertencia.setVisible(true);
+      btnConfirmarSalir.setVisible(true);
+      btnCancelarSalir.setVisible(true);
+    });
+
+    // Si cancela, restauramos los botones normales
+    btnCancelarSalir.on("pointerdown", () => {
+      txtAdvertencia.setVisible(false);
+      btnConfirmarSalir.setVisible(false);
+      btnCancelarSalir.setVisible(false);
+
+      btnResume.setVisible(true);
+      btnRestart.setVisible(true);
+      btnExit.setVisible(true);
+      imgPausa.setVisible(true);
+    });
+
+    // Si confirma, guardamos estado base en Supabase (Penalizando puntos/tiempo del nivel actual)
+    btnConfirmarSalir.on("pointerdown", async () => {
+      btnConfirmarSalir.disableInteractive();
+      
+      const usuarioId = localStorage.getItem("usuario_id");
+      
+      // Obtenemos los datos limpios directamente desde tu Phaser Registry compartido
+      const vidasActuales = this.registry.get("vidas") || 3;
+
+      // Traducimos tu clave de escena de texto al entero correspondiente para tu base de datos
+      let numeroNivel = 1;
+      if (this.nivelActual === "Level2") numeroNivel = 2;
+      if (this.nivelActual === "Level3") numeroNivel = 3;
+
+      if (usuarioId) {
+        try {
+          // LLAMADA CLAVE: Al mandar 0 puntos y 0 tiempo, la base de datos no le suma nada 
+          // a su puntaje histórico acumulado anterior, logrando el efecto de "perder el progreso de este nivel".
+          await authService.guardarPartida(
+            usuarioId,
+            numeroNivel, // Mantiene el nivel en el que se quedó para que reanude ahí al volver
+            vidasActuales,
+            0, // Huesos del nivel actual que se pierden: 0
+            0, // Puntos conseguidos en este intento del nivel: 0
+            0  // Tiempo invertido en este intento: 0
+          );
+          console.log("Salida registrada con éxito. Progreso del nivel actual descartado.");
+        } catch (err) {
+          console.error("Error al reportar salida a Supabase:", err);
+        }
+      }
+
+      // Limpieza completa de las escenas en ejecución y vuelta al menú
       this.scene.stop();
       this.scene.stop(this.nivelActual);
       this.scene.start("MenuScene");
     });
 
-    [btnResume, btnRestart, btnExit].forEach((btn) => {
+    // Efectos de hover estilizados
+    [btnResume, btnRestart, btnExit, btnConfirmarSalir, btnCancelarSalir].forEach((btn) => {
       btn.on("pointerover", () => btn.setTint(0xffcc00));
       btn.on("pointerout", () => btn.clearTint());
     });
 
-    // --- MANEJO DE RESIZE SEGURO PARA LA PAUSA ---
+    // --- RESIZE COMPATIBLE CON TU ESCALA ---
     this.resizeHandler = (gameSize) => {
       const w = gameSize.width;
       const h = gameSize.height;
@@ -95,10 +195,13 @@ export default class PauseScene extends Phaser.Scene {
       btnResume.setPosition(w / 2, bBotonesY).setScale(eBotones);
       btnRestart.setPosition(w / 2, bBotonesY + sep).setScale(eBotones);
       btnExit.setPosition(w / 2, bBotonesY + sep * 2).setScale(eBotones);
+
+      txtAdvertencia.setPosition(w / 2, h * 0.52).setFontSize(`${20 * bScale}px`);
+      btnConfirmarSalir.setPosition(w / 2 - 120 * bScale, h * 0.68).setFontSize(`${18 * bScale}px`);
+      btnCancelarSalir.setPosition(w / 2 + 120 * bScale, h * 0.68).setFontSize(`${18 * bScale}px`);
     };
 
     this.scale.on("resize", this.resizeHandler);
-
     this.events.on("shutdown", () => {
       this.scale.off("resize", this.resizeHandler);
     });

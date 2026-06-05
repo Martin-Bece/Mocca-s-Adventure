@@ -17,8 +17,6 @@ app.use(cors({
 }));
 app.use(express.json());
 
-app.use('/api', authRoutes);
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
@@ -114,11 +112,10 @@ app.post('/api/login', async (req, res) => {
 });
 
 // ============================================================================
-// --- ENDPOINTS DE PERSISTENCIA Y HIGHSCORES (SISTEMA MOCCA) ---
+// --- ENDPOINTS DE PERSISTENCIA Y HIGHSCORES (SISTEMA MOCCA CON POOL) ---
 // ============================================================================
 
 // 🌟 1. GUARDAR PARTIDA (Al pasar de nivel o guardar desde el menú de pausa)
-// Si guarda a mitad de nivel, puntos_a_acumular y tiempo_a_acumular deben ser 0.
 app.post('/api/save-game', async (req, res) => {
   const { 
     usuario_id, 
@@ -134,50 +131,31 @@ app.post('/api/save-game', async (req, res) => {
   }
 
   try {
-    // Buscamos si el usuario ya tiene un registro en la tabla 'partidas'
-    const { data: partidaPrevia, error: errorBusqueda } = await supabase
-      .from('partidas')
-      .select('*')
-      .eq('usuario_id', usuario_id)
-      .single();
+    // Buscamos con query nativo si el usuario ya tiene una partida registrada
+    const partidaCheck = await pool.query('SELECT * FROM partidas WHERE usuario_id = $1', [usuario_id]);
+    const partidaPrevia = partidaCheck.rows[0];
 
-    if (errorBusqueda && errorBusqueda.code !== 'PGRST116') throw errorBusqueda;
-
-    let nuevoPuntajeAcumulado = puntos_a_acumular;
-    let nuevoTiempoAcumulado = tiempo_a_acumular;
+    let nuevoPuntajeAcumulado = Number(puntos_a_acumular || 0);
+    let nuevoTiempoAcumulado = Number(tiempo_a_acumular || 0);
 
     if (partidaPrevia) {
-      // 💡 LÓGICA MARTÍN: Sumamos lo del nivel completado al acumulado histórico que ya traía
-      nuevoPuntajeAcumulado = partidaPrevia.puntaje_acumulado + puntos_a_acumular;
-      nuevoTiempoAcumulado = partidaPrevia.tiempo_acumulado + tiempo_a_acumular;
+      // Sumamos lo del nivel completado al acumulado histórico que ya traía
+      nuevoPuntajeAcumulado = Number(partidaPrevia.puntaje_acumulado) + nuevoPuntajeAcumulado;
+      nuevoTiempoAcumulado = Number(partidaPrevia.tiempo_acumulado) + nuevoTiempoAcumulado;
 
-      const { error: errorUpdate } = await supabase
-        .from('partidas')
-        .update({
-          nivel_actual,
-          vidas,
-          huesos_recolectados,
-          puntaje_acumulado: nuevoPuntajeAcumulado,
-          tiempo_acumulado: nuevoTiempoAcumulado,
-          fecha_guardado: new Date()
-        })
-        .eq('usuario_id', usuario_id);
-
-      if (errorUpdate) throw errorUpdate;
+      await pool.query(
+        `UPDATE partidas 
+         SET nivel_actual = $1, vidas = $2, huesos_recolectados = $3, puntaje_acumulado = $4, tiempo_acumulado = $5, fecha_guardado = NOW() 
+         WHERE usuario_id = $6`,
+        [nivel_actual, vidas, huesos_recolectados, nuevoPuntajeAcumulado, nuevoTiempoAcumulado, usuario_id]
+      );
     } else {
-      // Primera vez que guarda en el juego (Nivel 1)
-      const { error: errorInsert } = await supabase
-        .from('partidas')
-        .insert([{ 
-          usuario_id, 
-          nivel_actual, 
-          vidas, 
-          huesos_recolectados, 
-          puntaje_acumulado: nuevoPuntajeAcumulado, 
-          tiempo_acumulado: nuevoTiempoAcumulado 
-        }]);
-
-      if (errorInsert) throw errorInsert;
+      // Primera vez que guarda en el juego
+      await pool.query(
+        `INSERT INTO partidas (usuario_id, nivel_actual, vidas, huesos_recolectados, puntaje_acumulado, tiempo_acumulado) 
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [usuario_id, nivel_actual, vidas, huesos_recolectados, nuevoPuntajeAcumulado, nuevoTiempoAcumulado]
+      );
     }
 
     return res.json({ 
@@ -187,7 +165,7 @@ app.post('/api/save-game', async (req, res) => {
     });
 
   } catch (error) {
-    console.error(error);
+    console.error('Error en backend al guardar partida:', error);
     res.status(500).json({ error: 'Error al procesar el guardado de la partida' });
   }
 });
@@ -202,59 +180,39 @@ app.post('/api/save-score', async (req, res) => {
   }
 
   try {
-    // Traemos lo que acumuló en los niveles anteriores desde la tabla 'partidas'
-    const { data: partida, error: errorPartida } = await supabase
-      .from('partidas')
-      .select('puntaje_acumulado, tiempo_acumulado')
-      .eq('usuario_id', usuario_id)
-      .single();
+    // Traemos lo acumulado usando pool
+    const partidaCheck = await pool.query('SELECT puntaje_acumulado, tiempo_acumulado FROM partidas WHERE usuario_id = $1', [usuario_id]);
+    const partida = partidaCheck.rows[0];
 
-    if (errorPartida) throw errorPartida;
+    if (!partida) {
+      return res.status(404).json({ error: 'No se encontró una partida previa para este usuario.' });
+    }
 
-    // Sumamos el esfuerzo del último nivel al acumulado de la aventura entera
-    const puntajeFinalDeLaAventura = partida.puntaje_acumulado + puntos_ultimo_nivel;
-    const tiempoFinalDeLaAventura = partida.tiempo_acumulado + tiempo_ultimo_nivel;
+    const puntajeFinalDeLaAventura = Number(partida.puntaje_acumulado) + Number(puntos_ultimo_nivel || 0);
+    const tiempoFinalDeLaAventura = Number(partida.tiempo_acumulado) + Number(tiempo_ultimo_nivel || 0);
 
-    // Buscamos si ya tiene un récord previo guardado en la tabla 'scores'
-    const { data: scorePrevio, error: errorScore } = await supabase
-      .from('scores')
-      .select('*')
-      .eq('usuario_id', usuario_id)
-      .single();
-
-    if (errorScore && errorScore.code !== 'PGRST116') throw errorScore;
+    // Buscamos si ya tiene un récord previo guardado en 'scores'
+    const scoreCheck = await pool.query('SELECT * FROM scores WHERE usuario_id = $1', [usuario_id]);
+    const scorePrevio = scoreCheck.rows[0];
 
     if (scorePrevio) {
-      // SOLO se actualiza el ranking si esta partida superó su propio récord anterior
       if (puntajeFinalDeLaAventura > scorePrevio.puntaje_total) {
-        const { error: errorUpdate } = await supabase
-          .from('scores')
-          .update({ 
-            puntaje_total: puntajeFinalDeLaAventura, 
-            tiempo_final: tiempoFinalDeLaAventura, 
-            fecha_logro: new Date() 
-          })
-          .eq('usuario_id', usuario_id);
-        
-        if (errorUpdate) throw errorUpdate;
+        await pool.query(
+          `UPDATE scores SET puntaje_total = $1, tiempo_final = $2, fecha_logro = NOW() WHERE usuario_id = $3`,
+          [puntajeFinalDeLaAventura, tiempoFinalDeLaAventura, usuario_id]
+        );
         return res.json({ message: '¡Nuevo récord histórico superado!', puntaje: puntajeFinalDeLaAventura });
       }
       return res.json({ message: 'Aventura terminada, pero no superó tu récord máximo.', puntaje: puntajeFinalDeLaAventura });
     } else {
-      // Si es su primera vez en el ranking de la tabla 'scores', lo insertamos de una
-      const { error: errorInsert } = await supabase
-        .from('scores')
-        .insert([{ 
-          usuario_id, 
-          puntaje_total: puntajeFinalDeLaAventura, 
-          tiempo_final: tiempoFinalDeLaAventura 
-        }]);
-
-      if (errorInsert) throw errorInsert;
+      await pool.query(
+        `INSERT INTO scores (usuario_id, puntaje_total, tiempo_final) VALUES ($1, $2, $3)`,
+        [usuario_id, puntajeFinalDeLaAventura, tiempoFinalDeLaAventura]
+      );
       return res.json({ message: '¡Aventura completada! Entraste al ranking por primera vez.', puntaje: puntajeFinalDeLaAventura });
     }
   } catch (error) {
-    console.error(error);
+    console.error('Error en backend al salvar score:', error);
     res.status(500).json({ error: 'Error al registrar el Score en el ranking' });
   }
 });
@@ -263,28 +221,23 @@ app.post('/api/save-score', async (req, res) => {
 // 🌟 3. LEER EL TOP 5 DE HIGHSCORES (Para armar la tabla de posiciones en la UI)
 app.get('/api/highscores', async (req, res) => {
   try {
-    const { data, error } = await supabase
-      .from('scores')
-      .select(`
-        puntaje_total,
-        tiempo_final,
-        usuarios ( username )
-      `)
-      .order('puntaje_total', { ascending: false })
-      .limit(5);
+    const result = await pool.query(`
+      SELECT s.puntaje_total, s.tiempo_final, u.username 
+      FROM scores s
+      JOIN usuarios u ON s.usuario_id = u.id
+      ORDER BY s.puntaje_total DESC 
+      LIMIT 5
+    `);
 
-    if (error) throw error;
-    
-    // Devolvemos un formato limpio haciendo el mapeo con el JOIN de usuarios
-    const top5 = data.map(item => ({
-      username: item.usuarios?.username || 'Anónimo',
+    const top5 = result.rows.map(item => ({
+      username: item.username || 'Anónimo',
       score: item.puntaje_total,
       tiempo: item.tiempo_final
     }));
 
     res.json(top5);
   } catch (error) {
-    console.error(error);
+    console.error('Error en backend al traer highscores:', error);
     res.status(500).json({ error: 'Error al obtener la tabla de highscores' });
   }
 });

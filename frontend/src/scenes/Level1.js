@@ -333,7 +333,6 @@ export default class Level1 extends EscenaBase {
       const mDerecho = 50 * fUI;
       const mSuperior = 45 * fUI;
       const eEntre = 65 * fUI;
-      this.physics.world.setBounds(0, 0, this.longitudNivel, h);
 
       if (this.fondoBosque) {
         this.fondoBosque.setSize(w, h);
