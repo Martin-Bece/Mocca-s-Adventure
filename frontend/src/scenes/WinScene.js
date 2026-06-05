@@ -1,3 +1,5 @@
+import { authService } from "../services/api.js";
+
 // ============================================================================
 // --- ESCENA: PANTALLA DE VICTORIA SUPERPUESTA ---
 // ============================================================================
@@ -12,6 +14,7 @@ export default class WinScene extends Phaser.Scene {
     this.puntosFinales = data.puntos || 0;
     this.vidasFinales = data.vidas || 0;
     this.tiempoFinal = data.tiempo || 0;
+    this.huesosFinales = data.huesos || 0; // Agregado por si manejás huesos en la UI
   }
 
   preload() {
@@ -20,7 +23,7 @@ export default class WinScene extends Phaser.Scene {
     this.load.image("Exit", "./Assets/Botones/Exit.png");
   }
 
-  create() {
+  async create() {
     const { width, height } = this.scale;
     const baseScale = height / 768;
 
@@ -82,10 +85,43 @@ export default class WinScene extends Phaser.Scene {
       )
       .setOrigin(0.5);
 
-    // 5. Botones de Control en disposición horizontal (uno al lado del otro)
+    // ============================================================================
+    // 🌟 PERSISTENCIA AUTOMÁTICA EN EL BACKEND (AL REESCRIBIR)
+    // ============================================================================
+    const usuarioIdRaw = localStorage.getItem("usuario_id");
+    const usuarioId = usuarioIdRaw ? parseInt(usuarioIdRaw, 10) : null;
+
+    // Determinamos qué nivel va a quedar guardado en base al que acaba de ganar
+    let proximoNivel = 1;
+    if (this.escenaOrigen === "Level1") proximoNivel = 2;
+    if (this.escenaOrigen === "Level2") proximoNivel = 3;
+
+    if (usuarioId) {
+      try {
+        console.log("Guardando progreso automáticamente...");
+        // Mandamos los datos directo al endpoint '/api/save-game'
+        // Tu backend con pool se encarga del UPDATE si ya existe en la base de datos.
+        const respuesta = await authService.guardarPartida(
+          usuarioId,
+          proximoNivel,
+          this.vidasFinales,
+          this.huesosFinales,
+          this.puntosFinales,
+          this.tiempoFinal
+        );
+        console.log("¡Progreso de aventura guardado de forma automática!", respuesta);
+      } catch (err) {
+        console.error("Error en el auto-guardado de victoria:", err);
+      }
+    } else {
+      console.warn("Auto-guardado saltado: usuario_id no encontrado en localStorage.");
+    }
+    // ============================================================================
+
+    // 5. Botones de Control en disposición horizontal
     const escalaBotones = 0.4 * baseScale;
     const botonesY = height * 0.78;
-    const separacionHorizontal = 110 * baseScale; // Distancia desde el centro para cada lado
+    const separacionHorizontal = 110 * baseScale;
 
     // Botón Exit (A la izquierda)
     let btnExit = this.add
@@ -97,7 +133,7 @@ export default class WinScene extends Phaser.Scene {
     btnExit.on("pointerdown", () => {
       this.scene.stop();
       this.scene.stop(this.escenaOrigen);
-      this.scene.start("MenuScene"); // Te manda al menú de inicio
+      this.scene.start("MenuScene"); // Te manda al menú de inicio sin perder nada porque ya se guardó
     });
 
     // Botón Continue (A la derecha)
@@ -111,12 +147,14 @@ export default class WinScene extends Phaser.Scene {
       this.scene.stop();
       this.scene.stop(this.escenaOrigen);
 
+      // Reseteamos el registry global para la nueva etapa
       this.registry.set("puntos", 0);
       this.registry.set("tiempo", 0);
 
-      // Si venías del Nivel 1, te pasa al 2. Si venías del 2, podrías mandarlo a una pantalla final o menú.
       if (this.escenaOrigen === "Level1") {
         this.scene.start("Level2");
+      } else if (this.escenaOrigen === "Level2") {
+        this.scene.start("Level3");
       } else {
         this.scene.start("MenuScene");
       }
@@ -129,13 +167,19 @@ export default class WinScene extends Phaser.Scene {
     });
 
     // Manejo de resize
-    this.scale.on("resize", () => {
+    this.resizeHandler = () => {
       this.scene.restart({
         escenaOrigen: this.escenaOrigen,
         puntos: this.puntosFinales,
         vidas: this.vidasFinales,
         tiempo: this.tiempoFinal,
+        huesos: this.huesosFinales
       });
+    };
+
+    this.scale.on("resize", this.resizeHandler);
+    this.events.on("shutdown", () => {
+      this.scale.off("resize", this.resizeHandler);
     });
   }
 }

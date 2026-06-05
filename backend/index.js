@@ -242,6 +242,42 @@ app.get('/api/highscores', async (req, res) => {
   }
 });
 
+// 🌟 4. OBTENER LA PARTIDA GUARDADA DE UN USUARIO (Para el botón Continuar)
+app.get('/api/get-game/:usuario_id', async (req, res) => {
+  const { usuario_id } = req.params;
+
+  if (!usuario_id) {
+    return res.status(400).json({ error: 'Falta el usuario_id en los parámetros' });
+  }
+
+  try {
+    const result = await pool.query(
+      'SELECT nivel_actual, vidas, huesos_recolectados, puntaje_acumulado, tiempo_acumulado FROM partidas WHERE usuario_id = $1',
+      [usuario_id]
+    );
+
+    const partida = result.rows[0];
+
+    if (!partida) {
+      // Devolvemos 404 si el usuario existe pero nunca guardó partida (es normal)
+      return res.status(404).json({ message: 'No se encontró progreso guardado para este usuario.' });
+    }
+
+    // Mapeamos los nombres para que el frontend los entienda al vuelo
+    return res.json({
+      nivel_actual: Number(partida.nivel_actual),
+      vidas: Number(partida.vidas),
+      huesos: Number(partida.huesos_recolectados),
+      puntaje: Number(partida.puntaje_acumulado),
+      tiempo_jugado: Number(partida.tiempo_acumulado)
+    });
+
+  } catch (error) {
+    console.error('Error en backend al obtener partida:', error);
+    res.status(500).json({ error: 'Error al procesar la solicitud en el servidor' });
+  }
+});
+
 // Ruta base
 app.get('/', (req, res) => {
   res.send('Servidor de Mocca\'s Adventure corriendo impecable 🐾');
