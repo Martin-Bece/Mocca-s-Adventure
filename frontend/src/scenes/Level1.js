@@ -237,7 +237,7 @@ export default class Level1 extends EscenaBase {
     this.mocca = this.physics.add
       .sprite(100, height - 100, "mocca")
       .setScale(1.5);
-    this.mocca.body.setSize(50, 35);
+    this.mocca.body.setSize(45, 35);
     this.mocca.body.setOffset(8, 12);
     this.mocca.setCollideWorldBounds(true);
     this.mocca.anims.play("idle");

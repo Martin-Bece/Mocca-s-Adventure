@@ -103,6 +103,16 @@ export default class LoginScene extends Phaser.Scene {
 
         if (response.ok) {
           this.mostrarFeedback("¡Ingreso exitoso! 🐾", "#00ff00");
+          
+          // ==========================================
+          // 🔥 CAMBIO CRUCIAL: GUARDAR EL ID DE USUARIO
+          // ==========================================
+          if (data.user && data.user.id) {
+            localStorage.setItem("usuario_id", data.user.id);
+          } else if (data.id) {
+            localStorage.setItem("usuario_id", data.id); // Por si tu backend devuelve el ID en la raíz del json
+          }
+
           this.registry.set("vidas", 3);
           this.registry.set("puntos", 0);
           

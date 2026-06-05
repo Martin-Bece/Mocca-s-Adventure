@@ -134,36 +134,43 @@ export default class PauseScene extends Phaser.Scene {
       imgPausa.setVisible(true);
     });
 
-    // Si confirma, guardamos estado base en Supabase (Penalizando puntos/tiempo del nivel actual)
+    // Si confirma, guardamos estado en el backend antes de salir
     btnConfirmarSalir.on("pointerdown", async () => {
       btnConfirmarSalir.disableInteractive();
       
-      const usuarioId = localStorage.getItem("usuario_id");
+      // 1. Convertimos el ID a entero para evitar problemas de tipos en Postgres
+      const usuarioIdRaw = localStorage.getItem("usuario_id");
+      const usuarioId = usuarioIdRaw ? parseInt(usuarioIdRaw, 10) : null;
       
-      // Obtenemos los datos limpios directamente desde tu Phaser Registry compartido
+      // 2. Recuperamos los datos REALES acumulados en la sesión de Phaser
       const vidasActuales = this.registry.get("vidas") || 3;
+      const puntosActuales = this.registry.get("puntos") || 0;
+      const huesosActuales = this.registry.get("huesos") || 0; 
+      const tiempoActual = this.registry.get("tiempo_nivel") || 0; // O la variable de tiempo que uses
 
-      // Traducimos tu clave de escena de texto al entero correspondiente para tu base de datos
+      // Traducimos tu clave de escena de texto al entero correspondiente
       let numeroNivel = 1;
       if (this.nivelActual === "Level2") numeroNivel = 2;
       if (this.nivelActual === "Level3") numeroNivel = 3;
 
       if (usuarioId) {
         try {
-          // LLAMADA CLAVE: Al mandar 0 puntos y 0 tiempo, la base de datos no le suma nada 
-          // a su puntaje histórico acumulado anterior, logrando el efecto de "perder el progreso de este nivel".
-          await authService.guardarPartida(
+          // MANDAMOS LOS DATOS REALES AL BACKEND
+          const respuesta = await authService.guardarPartida(
             usuarioId,
-            numeroNivel, // Mantiene el nivel en el que se quedó para que reanude ahí al volver
+            numeroNivel, 
             vidasActuales,
-            0, // Huesos del nivel actual que se pierden: 0
-            0, // Puntos conseguidos en este intento del nivel: 0
-            0  // Tiempo invertido en este intento: 0
+            huesosActuales,   // Mandamos los huesos recolectados reales
+            puntosActuales,   // Mandamos los puntos reales para acumular
+            tiempoActual      // Mandamos el tiempo real
           );
-          console.log("Salida registrada con éxito. Progreso del nivel actual descartado.");
+          
+          console.log("Partida guardada correctamente en el backend:", respuesta);
         } catch (err) {
-          console.error("Error al reportar salida a Supabase:", err);
+          console.error("Error al reportar salida al backend:", err);
         }
+      } else {
+        console.warn("No se pudo guardar: usuario_id no encontrado en localStorage.");
       }
 
       // Limpieza completa de las escenas en ejecución y vuelta al menú
