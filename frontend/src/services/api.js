@@ -24,7 +24,7 @@ export const authService = {
   // 🌟 FUNCIÓN PARA GUARDAR LA PARTIDA (Al pasar de nivel o pausar)
   async guardarPartida(usuarioId, nivelActual, vidas, huesos, puntosNivel, tiempoNivel) {
     try {
-        const response = await fetch(`${API_URL}/save-game`, {
+        const response = await fetch(`${API_URL}/savegame`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -50,7 +50,7 @@ export const authService = {
   // 🌟 FUNCIÓN PARA REGISTRAR EL SCORE FINAL (Cuando gana el juego o muere del todo)
   async registrarScoreFinal(usuarioId, puntosUltimoNivel, tiempoUltimoNivel) {
     try {
-        const response = await fetch(`${API_URL}/save-score`, {
+        const response = await fetch(`${API_URL}/savescore`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'

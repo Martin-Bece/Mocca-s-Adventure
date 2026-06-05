@@ -15,7 +15,7 @@ export default class PauseScene extends Phaser.Scene {
 
   preload() {
     this.load.image("pause_img", "./Assets/pause_img.png");
-    this.load.image("Continue", "./Assets/Botones/Continue.png"); 
+    this.load.image("Continue", "./Assets/Botones/Continue.png");
     this.load.image("Restart", "./Assets/Botones/Restart.png");
     this.load.image("Exit", "./Assets/Botones/Exit.png");
   }
@@ -63,7 +63,7 @@ export default class PauseScene extends Phaser.Scene {
 
       // Reseteamos el registry global tal como lo pide tu lógica de reinicios
       this.registry.set("puntos", 0);
-      
+
       this.scene.start(this.nivelActual);
     });
 
@@ -75,38 +75,56 @@ export default class PauseScene extends Phaser.Scene {
       .setInteractive({ useHandCursor: true });
 
     // --- COMPONENTES DE ADVERTENCIA (OCULTOS POR DEFECTO) ---
-    let txtAdvertencia = this.add.text(width / 2, height * 0.52, 
-      "⚠️ ¡ATENCIÓN!\nSi salís ahora perderás los puntos y tiempo de este nivel.\nAl regresar, comenzarás desde el principio de esta etapa.", 
-      {
+    let txtAdvertencia = this.add
+      .text(
+        width / 2,
+        height * 0.52,
+        "⚠️ ¡ATENCIÓN!\nSi salís ahora perderás los puntos y tiempo de este nivel.\nAl regresar, comenzarás desde el principio de esta etapa.",
+        {
+          fontFamily: "Arial",
+          fontSize: `${20 * baseScale}px`,
+          color: "#ffffff",
+          align: "center",
+          fontStyle: "bold",
+          backgroundColor: "#111111",
+          padding: { x: 15, y: 15 },
+          stroke: "#ff0000",
+          strokeThickness: 2,
+        },
+      )
+      .setOrigin(0.5)
+      .setVisible(false);
+
+    let btnConfirmarSalir = this.add
+      .text(
+        width / 2 - 120 * baseScale,
+        height * 0.68,
+        "SALIR Y PERDER PROGRESO",
+        {
+          fontFamily: "Arial",
+          fontSize: `${18 * baseScale}px`,
+          color: "#ff3333",
+          fontStyle: "bold",
+          backgroundColor: "#222222",
+          padding: { x: 12, y: 12 },
+        },
+      )
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setVisible(false);
+
+    let btnCancelarSalir = this.add
+      .text(width / 2 + 120 * baseScale, height * 0.68, "VOLVER AL JUEGO", {
         fontFamily: "Arial",
-        fontSize: `${20 * baseScale}px`,
-        color: "#ffffff",
-        align: "center",
+        fontSize: `${18 * baseScale}px`,
+        color: "#00ff00",
         fontStyle: "bold",
-        backgroundColor: "#111111",
-        padding: { x: 15, y: 15 },
-        stroke: "#ff0000",
-        strokeThickness: 2
-      }
-    ).setOrigin(0.5).setVisible(false);
-
-    let btnConfirmarSalir = this.add.text(width / 2 - 120 * baseScale, height * 0.68, "SALIR Y PERDER PROGRESO", {
-      fontFamily: "Arial",
-      fontSize: `${18 * baseScale}px`,
-      color: "#ff3333",
-      fontStyle: "bold",
-      backgroundColor: "#222222",
-      padding: { x: 12, y: 12 }
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setVisible(false);
-
-    let btnCancelarSalir = this.add.text(width / 2 + 120 * baseScale, height * 0.68, "VOLVER AL JUEGO", {
-      fontFamily: "Arial",
-      fontSize: `${18 * baseScale}px`,
-      color: "#00ff00",
-      fontStyle: "bold",
-      backgroundColor: "#222222",
-      padding: { x: 12, y: 12 }
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true }).setVisible(false);
+        backgroundColor: "#222222",
+        padding: { x: 12, y: 12 },
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setVisible(false);
 
     // --- INTERACCIÓN DE EXIT ---
     btnExit.on("pointerdown", () => {
@@ -137,50 +155,68 @@ export default class PauseScene extends Phaser.Scene {
     // Si confirma, guardamos estado en el backend antes de salir
     btnConfirmarSalir.on("pointerdown", async () => {
       btnConfirmarSalir.disableInteractive();
-      
-      // 1. Convertimos el ID a entero para evitar problemas de tipos en Postgres
+
+      // 1. Recuperar usuario_id de localStorage
       const usuarioIdRaw = localStorage.getItem("usuario_id");
       const usuarioId = usuarioIdRaw ? parseInt(usuarioIdRaw, 10) : null;
-      
-      // 2. Recuperamos los datos REALES acumulados en la sesión de Phaser
-      const vidasActuales = this.registry.get("vidas") || 3;
-      const puntosActuales = this.registry.get("puntos") || 0;
-      const huesosActuales = this.registry.get("huesos") || 0; 
-      const tiempoActual = this.registry.get("tiempo_nivel") || 0; // O la variable de tiempo que uses
 
-      // Traducimos tu clave de escena de texto al entero correspondiente
+      // 2. Recuperar datos del registry con valores por defecto
+      const vidasActuales = this.registry.get("vidas") ?? 3;
+      const puntosActuales = this.registry.get("puntos") ?? 0;
+      const huesosActuales = this.registry.get("huesos") ?? 0;
+      const tiempoActual = this.registry.get("tiempo_nivel") ?? 0;
+
+      // 3. Traducir nombre de escena a número de nivel
       let numeroNivel = 1;
       if (this.nivelActual === "Level2") numeroNivel = 2;
       if (this.nivelActual === "Level3") numeroNivel = 3;
 
+      // 4. Loguear payload antes de enviarlo
+      const payload = {
+        usuario_id: usuarioId,
+        nivel_actual: numeroNivel,
+        vidas: vidasActuales,
+        huesos_recolectados: huesosActuales,
+        puntos_a_acumular: puntosActuales,
+        tiempo_a_acumular: tiempoActual,
+      };
+      console.log("Payload enviado al backend:", payload);
+
+      // 5. Enviar al backend si hay usuario válido
       if (usuarioId) {
         try {
-          // MANDAMOS LOS DATOS REALES AL BACKEND
           const respuesta = await authService.guardarPartida(
             usuarioId,
-            numeroNivel, 
+            numeroNivel,
             vidasActuales,
-            huesosActuales,   // Mandamos los huesos recolectados reales
-            puntosActuales,   // Mandamos los puntos reales para acumular
-            tiempoActual      // Mandamos el tiempo real
+            huesosActuales,
+            puntosActuales,
+            tiempoActual,
           );
-          
-          console.log("Partida guardada correctamente en el backend:", respuesta);
+          console.log("Respuesta del backend:", respuesta);
         } catch (err) {
-          console.error("Error al reportar salida al backend:", err);
+          console.error("Error al guardar partida en backend:", err);
         }
       } else {
-        console.warn("No se pudo guardar: usuario_id no encontrado en localStorage.");
+        console.warn(
+          "No se pudo guardar: usuario_id no encontrado en localStorage.",
+        );
       }
 
-      // Limpieza completa de las escenas en ejecución y vuelta al menú
+      // 6. Volver al menú
       this.scene.stop();
       this.scene.stop(this.nivelActual);
       this.scene.start("MenuScene");
     });
 
     // Efectos de hover estilizados
-    [btnResume, btnRestart, btnExit, btnConfirmarSalir, btnCancelarSalir].forEach((btn) => {
+    [
+      btnResume,
+      btnRestart,
+      btnExit,
+      btnConfirmarSalir,
+      btnCancelarSalir,
+    ].forEach((btn) => {
       btn.on("pointerover", () => btn.setTint(0xffcc00));
       btn.on("pointerout", () => btn.clearTint());
     });
@@ -203,9 +239,15 @@ export default class PauseScene extends Phaser.Scene {
       btnRestart.setPosition(w / 2, bBotonesY + sep).setScale(eBotones);
       btnExit.setPosition(w / 2, bBotonesY + sep * 2).setScale(eBotones);
 
-      txtAdvertencia.setPosition(w / 2, h * 0.52).setFontSize(`${20 * bScale}px`);
-      btnConfirmarSalir.setPosition(w / 2 - 120 * bScale, h * 0.68).setFontSize(`${18 * bScale}px`);
-      btnCancelarSalir.setPosition(w / 2 + 120 * bScale, h * 0.68).setFontSize(`${18 * bScale}px`);
+      txtAdvertencia
+        .setPosition(w / 2, h * 0.52)
+        .setFontSize(`${20 * bScale}px`);
+      btnConfirmarSalir
+        .setPosition(w / 2 - 120 * bScale, h * 0.68)
+        .setFontSize(`${18 * bScale}px`);
+      btnCancelarSalir
+        .setPosition(w / 2 + 120 * bScale, h * 0.68)
+        .setFontSize(`${18 * bScale}px`);
     };
 
     this.scale.on("resize", this.resizeHandler);

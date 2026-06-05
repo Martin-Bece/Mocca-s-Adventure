@@ -116,7 +116,7 @@ app.post('/api/login', async (req, res) => {
 // ============================================================================
 
 // 🌟 1. GUARDAR PARTIDA (Al pasar de nivel o guardar desde el menú de pausa)
-app.post('/api/save-game', async (req, res) => {
+app.post('/api/savegame', async (req, res) => {
   const { 
     usuario_id, 
     nivel_actual, 
@@ -172,7 +172,7 @@ app.post('/api/save-game', async (req, res) => {
 
 
 // 🌟 2. REGISTRAR EN EL RANKING FINAL (Cuando completa el juego o muere definitivamente)
-app.post('/api/save-score', async (req, res) => {
+app.post('/api/savescore', async (req, res) => {
   const { usuario_id, puntos_ultimo_nivel, tiempo_ultimo_nivel } = req.body;
 
   if (!usuario_id) {
