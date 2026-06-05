@@ -7,6 +7,7 @@ import HelpScene from "./scenes/HelpScene.js";
 import CreditsScene from "./scenes/CreditsScene.js";
 import Level2 from "./scenes/Level2.js";
 import WinScene from "./scenes/WinScene.js";
+import HighscoresScene from "./scenes/HighscoresScene.js";
 
 // ============================================================================
 // --- CONFIGURACIÓN E INICIALIZACIÓN ---
@@ -40,6 +41,7 @@ const config = {
     CreditsScene,
     Level2,
     WinScene,
+    HighscoresScene
   ],
 };
 
