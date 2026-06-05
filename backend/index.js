@@ -113,6 +113,182 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// ============================================================================
+// --- ENDPOINTS DE PERSISTENCIA Y HIGHSCORES (SISTEMA MOCCA) ---
+// ============================================================================
+
+// 🌟 1. GUARDAR PARTIDA (Al pasar de nivel o guardar desde el menú de pausa)
+// Si guarda a mitad de nivel, puntos_a_acumular y tiempo_a_acumular deben ser 0.
+app.post('/api/save-game', async (req, res) => {
+  const { 
+    usuario_id, 
+    nivel_actual, 
+    vidas, 
+    huesos_recolectados, 
+    puntos_a_acumular, 
+    tiempo_a_acumular 
+  } = req.body;
+
+  if (!usuario_id) {
+    return res.status(400).json({ error: 'Falta el usuario_id' });
+  }
+
+  try {
+    // Buscamos si el usuario ya tiene un registro en la tabla 'partidas'
+    const { data: partidaPrevia, error: errorBusqueda } = await supabase
+      .from('partidas')
+      .select('*')
+      .eq('usuario_id', usuario_id)
+      .single();
+
+    if (errorBusqueda && errorBusqueda.code !== 'PGRST116') throw errorBusqueda;
+
+    let nuevoPuntajeAcumulado = puntos_a_acumular;
+    let nuevoTiempoAcumulado = tiempo_a_acumular;
+
+    if (partidaPrevia) {
+      // 💡 LÓGICA MARTÍN: Sumamos lo del nivel completado al acumulado histórico que ya traía
+      nuevoPuntajeAcumulado = partidaPrevia.puntaje_acumulado + puntos_a_acumular;
+      nuevoTiempoAcumulado = partidaPrevia.tiempo_acumulado + tiempo_a_acumular;
+
+      const { error: errorUpdate } = await supabase
+        .from('partidas')
+        .update({
+          nivel_actual,
+          vidas,
+          huesos_recolectados,
+          puntaje_acumulado: nuevoPuntajeAcumulado,
+          tiempo_acumulado: nuevoTiempoAcumulado,
+          fecha_guardado: new Date()
+        })
+        .eq('usuario_id', usuario_id);
+
+      if (errorUpdate) throw errorUpdate;
+    } else {
+      // Primera vez que guarda en el juego (Nivel 1)
+      const { error: errorInsert } = await supabase
+        .from('partidas')
+        .insert([{ 
+          usuario_id, 
+          nivel_actual, 
+          vidas, 
+          huesos_recolectados, 
+          puntaje_acumulado: nuevoPuntajeAcumulado, 
+          tiempo_acumulado: nuevoTiempoAcumulado 
+        }]);
+
+      if (errorInsert) throw errorInsert;
+    }
+
+    return res.json({ 
+      message: 'Partida resguardada con éxito', 
+      puntaje_total_acumulado: nuevoPuntajeAcumulado,
+      tiempo_total_acumulado: nuevoTiempoAcumulado
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al procesar el guardado de la partida' });
+  }
+});
+
+
+// 🌟 2. REGISTRAR EN EL RANKING FINAL (Cuando completa el juego o muere definitivamente)
+app.post('/api/save-score', async (req, res) => {
+  const { usuario_id, puntos_ultimo_nivel, tiempo_ultimo_nivel } = req.body;
+
+  if (!usuario_id) {
+    return res.status(400).json({ error: 'Falta el usuario_id' });
+  }
+
+  try {
+    // Traemos lo que acumuló en los niveles anteriores desde la tabla 'partidas'
+    const { data: partida, error: errorPartida } = await supabase
+      .from('partidas')
+      .select('puntaje_acumulado, tiempo_acumulado')
+      .eq('usuario_id', usuario_id)
+      .single();
+
+    if (errorPartida) throw errorPartida;
+
+    // Sumamos el esfuerzo del último nivel al acumulado de la aventura entera
+    const puntajeFinalDeLaAventura = partida.puntaje_acumulado + puntos_ultimo_nivel;
+    const tiempoFinalDeLaAventura = partida.tiempo_acumulado + tiempo_ultimo_nivel;
+
+    // Buscamos si ya tiene un récord previo guardado en la tabla 'scores'
+    const { data: scorePrevio, error: errorScore } = await supabase
+      .from('scores')
+      .select('*')
+      .eq('usuario_id', usuario_id)
+      .single();
+
+    if (errorScore && errorScore.code !== 'PGRST116') throw errorScore;
+
+    if (scorePrevio) {
+      // SOLO se actualiza el ranking si esta partida superó su propio récord anterior
+      if (puntajeFinalDeLaAventura > scorePrevio.puntaje_total) {
+        const { error: errorUpdate } = await supabase
+          .from('scores')
+          .update({ 
+            puntaje_total: puntajeFinalDeLaAventura, 
+            tiempo_final: tiempoFinalDeLaAventura, 
+            fecha_logro: new Date() 
+          })
+          .eq('usuario_id', usuario_id);
+        
+        if (errorUpdate) throw errorUpdate;
+        return res.json({ message: '¡Nuevo récord histórico superado!', puntaje: puntajeFinalDeLaAventura });
+      }
+      return res.json({ message: 'Aventura terminada, pero no superó tu récord máximo.', puntaje: puntajeFinalDeLaAventura });
+    } else {
+      // Si es su primera vez en el ranking de la tabla 'scores', lo insertamos de una
+      const { error: errorInsert } = await supabase
+        .from('scores')
+        .insert([{ 
+          usuario_id, 
+          puntaje_total: puntajeFinalDeLaAventura, 
+          tiempo_final: tiempoFinalDeLaAventura 
+        }]);
+
+      if (errorInsert) throw errorInsert;
+      return res.json({ message: '¡Aventura completada! Entraste al ranking por primera vez.', puntaje: puntajeFinalDeLaAventura });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al registrar el Score en el ranking' });
+  }
+});
+
+
+// 🌟 3. LEER EL TOP 5 DE HIGHSCORES (Para armar la tabla de posiciones en la UI)
+app.get('/api/highscores', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('scores')
+      .select(`
+        puntaje_total,
+        tiempo_final,
+        usuarios ( username )
+      `)
+      .order('puntaje_total', { ascending: false })
+      .limit(5);
+
+    if (error) throw error;
+    
+    // Devolvemos un formato limpio haciendo el mapeo con el JOIN de usuarios
+    const top5 = data.map(item => ({
+      username: item.usuarios?.username || 'Anónimo',
+      score: item.puntaje_total,
+      tiempo: item.tiempo_final
+    }));
+
+    res.json(top5);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Error al obtener la tabla de highscores' });
+  }
+});
+
 // Ruta base
 app.get('/', (req, res) => {
   res.send('Servidor de Mocca\'s Adventure corriendo impecable 🐾');
