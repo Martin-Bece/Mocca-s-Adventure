@@ -269,7 +269,7 @@ app.post("/api/savescore", async (req, res) => {
       `UPDATE partidas 
        SET nivel_actual = 1, 
            vidas = 3, 
-           huesos = 0, 
+           huesos_recolectados = 0, 
            puntaje_acumulado = 0, 
            tiempo_acumulado = 0 
        WHERE usuario_id = $1`,
