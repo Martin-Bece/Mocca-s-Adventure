@@ -84,7 +84,9 @@ export default class Level1 extends EscenaBase {
     let bones = this.physics.add.group();
     this.gatos = this.physics.add.group();
 
-    // Animaciones
+    // ============================================================================
+    // --- VERIFICACIÓN SEGURA E INDIVIDUAL DE ANIMACIONES ---
+    // ============================================================================
     if (!this.anims.exists("huesito_rotate")) {
       this.anims.create({
         key: "huesito_rotate",
@@ -112,6 +114,8 @@ export default class Level1 extends EscenaBase {
         frameRate: 7,
         repeat: -1,
       });
+    }
+    if (!this.anims.exists("run")) {
       this.anims.create({
         key: "run",
         frames: this.anims.generateFrameNumbers("mocca_run", {
@@ -121,6 +125,8 @@ export default class Level1 extends EscenaBase {
         frameRate: 7,
         repeat: -1,
       });
+    }
+    if (!this.anims.exists("jump")) {
       this.anims.create({
         key: "jump",
         frames: this.anims.generateFrameNumbers("mocca_jump", {
@@ -130,6 +136,8 @@ export default class Level1 extends EscenaBase {
         frameRate: 2,
         repeat: 0,
       });
+    }
+    if (!this.anims.exists("bark_idle")) {
       this.anims.create({
         key: "bark_idle",
         frames: this.anims.generateFrameNumbers("mocca_bark", {
@@ -139,6 +147,8 @@ export default class Level1 extends EscenaBase {
         frameRate: 1,
         repeat: 0,
       });
+    }
+    if (!this.anims.exists("bark_run")) {
       this.anims.create({
         key: "bark_run",
         frames: this.anims.generateFrameNumbers("mocca_bark", {
@@ -148,6 +158,8 @@ export default class Level1 extends EscenaBase {
         frameRate: 1,
         repeat: 0,
       });
+    }
+    if (!this.anims.exists("bark_jump")) {
       this.anims.create({
         key: "bark_jump",
         frames: this.anims.generateFrameNumbers("mocca_bark", {
@@ -216,7 +228,7 @@ export default class Level1 extends EscenaBase {
     });
 
     // ============================================================================
-    // --- ENEMIGOS EN EL SUELO (Velocidades estables sin randoms) ---
+    // --- ENEMIGOS EN EL SUELO ---
     // ============================================================================
     for (let posX = 600; posX < 10300; posX += 450) {
       let gatoSuelo = this.gatos
@@ -225,7 +237,7 @@ export default class Level1 extends EscenaBase {
       gatoSuelo.body.setSize(35, 22);
       gatoSuelo.body.setOffset(6, 26);
       gatoSuelo.setCollideWorldBounds(true);
-      gatoSuelo.speed = 100; // Velocidad fija para evitar inconsistencias en el gameplay
+      gatoSuelo.speed = 100;
       gatoSuelo.distaciaPatrulla = 140;
       gatoSuelo.puntoInicialX = posX;
       gatoSuelo.isStunned = false;
@@ -268,7 +280,7 @@ export default class Level1 extends EscenaBase {
       this,
     );
 
-    // Tweening fijo para las animaciones flotantes de los huesitos
+    // Animaciones flotantes de los huesitos
     bones.children.iterate((huesito) => {
       if (huesito) {
         huesito.anims.play("huesito_rotate");
@@ -276,7 +288,7 @@ export default class Level1 extends EscenaBase {
         this.tweens.add({
           targets: huesito,
           y: huesito.y - 12,
-          duration: 1400, // Duración uniforme
+          duration: 1400,
           ease: "Sine.easeInOut",
           yoyo: true,
           repeat: -1,
@@ -291,10 +303,11 @@ export default class Level1 extends EscenaBase {
     const margenSuperior = 45 * factorUI;
     const espacioEntreBotones = 65 * factorUI;
 
+    // --- CORREGIDO: "margenSuperior" en vez de "marginSuperior" ---
     this.btnSonido = this.add
       .image(
         width - margenDerecho,
-        margenSuperior,
+        margenSuperior, 
         audioManager.isMuted(this) ? "Mute" : "Unmute",
       )
       .setOrigin(0.5)
@@ -317,7 +330,7 @@ export default class Level1 extends EscenaBase {
 
     this.btnPausa.on("pointerdown", () => {
       this.scene.pause("Level1");
-      this.scene.launch("PauseScene", { currentScene: "Level1" }); // <--- Pasamos la clave
+      this.scene.launch("PauseScene", { currentScene: "Level1" });
     });
 
     [this.btnSonido, this.btnPausa].forEach((btn) => {

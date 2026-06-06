@@ -28,10 +28,6 @@ export default class Level3 extends EscenaBase {
       frameWidth: 64,
       frameHeight: 64,
     });
-    this.load.spritesheet("mocca_run", "./Assets/Mocca_run_right.png", {
-      frameWidth: 64,
-      frameHeight: 64,
-    });
     this.load.image("ground", "./Assets/ground2.png");
 
     // Plataformas nuevas para el nivel 3
@@ -101,7 +97,9 @@ export default class Level3 extends EscenaBase {
     let bones = this.physics.add.group();
     this.enemigos = this.physics.add.group();
 
-    // --- ANIMACIONES REUTILIZADAS ---
+    // ============================================================================
+    // --- VERIFICACIÓN SEGURA E INDIVIDUAL DE ANIMACIONES ---
+    // ============================================================================
     if (!this.anims.exists("huesito_rotate")) {
       this.anims.create({
         key: "huesito_rotate",
@@ -114,7 +112,7 @@ export default class Level3 extends EscenaBase {
       });
     }
 
-    // Animaciones de Mocca
+    // Animaciones de Mocca validadas una por una
     if (!this.anims.exists("idle")) {
       this.anims.create({
         key: "idle",
@@ -122,6 +120,8 @@ export default class Level3 extends EscenaBase {
         frameRate: 7,
         repeat: -1,
       });
+    }
+    if (!this.anims.exists("run")) {
       this.anims.create({
         key: "run",
         frames: this.anims.generateFrameNumbers("mocca_run", {
@@ -131,6 +131,8 @@ export default class Level3 extends EscenaBase {
         frameRate: 7,
         repeat: -1,
       });
+    }
+    if (!this.anims.exists("jump")) {
       this.anims.create({
         key: "jump",
         frames: this.anims.generateFrameNumbers("mocca_jump", {
@@ -140,11 +142,35 @@ export default class Level3 extends EscenaBase {
         frameRate: 2,
         repeat: 0,
       });
+    }
+    if (!this.anims.exists("bark_idle")) {
       this.anims.create({
         key: "bark_idle",
         frames: this.anims.generateFrameNumbers("mocca_bark", {
           start: 0,
           end: 0,
+        }),
+        frameRate: 1,
+        repeat: 0,
+      });
+    }
+    if (!this.anims.exists("bark_run")) {
+      this.anims.create({
+        key: "bark_run",
+        frames: this.anims.generateFrameNumbers("mocca_bark", {
+          start: 1,
+          end: 1,
+        }),
+        frameRate: 1,
+        repeat: 0,
+      });
+    }
+    if (!this.anims.exists("bark_jump")) {
+      this.anims.create({
+        key: "bark_jump",
+        frames: this.anims.generateFrameNumbers("mocca_bark", {
+          start: 2,
+          end: 2,
         }),
         frameRate: 1,
         repeat: 0,
@@ -191,7 +217,6 @@ export default class Level3 extends EscenaBase {
       plataformaInstancia.body.checkCollision.right = false;
 
       if (plat.tipo === "corta") {
-
         plataformaInstancia.body.setSize(100, 1);
         plataformaInstancia.body.setOffset(1, 10);
 
@@ -199,7 +224,6 @@ export default class Level3 extends EscenaBase {
           .create(plat.x, plat.y - 40, "huesito")
           .body.setAllowGravity(false);
       } else if (plat.tipo === "mediana") {
-
         plataformaInstancia.body.setSize(170, 1);
         plataformaInstancia.body.setOffset(10, 14);
 
@@ -210,7 +234,6 @@ export default class Level3 extends EscenaBase {
           .create(plat.x + 35, plat.y - 45, "huesito")
           .body.setAllowGravity(false);
       } else if (plat.tipo === "larga") {
-
         plataformaInstancia.body.setSize(330, 1);
         plataformaInstancia.body.setOffset(10, 14);
 
@@ -255,7 +278,7 @@ export default class Level3 extends EscenaBase {
       autoSuelo.setVelocityX(autoSuelo.speed);
     }
 
-    // --- ENEMIGOS AÉREOS (Hitbox personalizado intacto) ---
+    // --- ENEMIGOS AÉREOS ---
     let alternarAlturaAvion = 0;
     for (let posX = 900; posX < 10000; posX += 650) {
       let alturaAvion = height - 300;
@@ -406,15 +429,12 @@ export default class Level3 extends EscenaBase {
   // --- COMPORTAMIENTO DE MOVIMIENTO / PATRULLA EN TIEMPO REAL ---
   update(time, delta) {
     // 🌟 1. LLAMAMOS AL UPDATE DE ESCENABASE
-    // Esto ejecuta manejarMovimientoMocca() y maneja la victoria.
     super.update(time, delta);
 
     // 🛑 CLÁUSULA DE GUARDA: Si el nivel ya se completó, frenamos el código acá
-    // Evita que los enemigos sigan procesando su patrullaje mientras la escena se pausa.
     if (this.nivelCompletado) return;
 
     // 🌟 2. PATRULLAJE EXCLUSIVO CON GIRO ADAPTADO PARA ESTE NIVEL
-    // Maneja el comportamiento único de los aviones y los autos sin pisar lo de Mocca
     if (this.enemigos) {
       this.enemigos.children.iterate((enemigo) => {
         if (enemigo && enemigo.active && enemigo.body) {
