@@ -28,6 +28,10 @@ export default class Level2 extends EscenaBase {
       frameWidth: 64,
       frameHeight: 64,
     });
+    this.load.spritesheet("mocca_run", "./Assets/Mocca_run_right.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
     this.load.image("ground", "./Assets/ground.png");
     this.load.image("park_platform", "./Assets/plataformaAire2.png");
 

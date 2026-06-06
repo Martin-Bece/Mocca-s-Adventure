@@ -9,12 +9,11 @@ export default class WinScene extends Phaser.Scene {
   }
 
   init(data) {
-    // Recibe los datos enviados desde el nivel
     this.escenaOrigen = data.escenaOrigen;
     this.puntosFinales = data.puntos || 0;
     this.vidasFinales = data.vidas || 0;
     this.tiempoFinal = data.tiempo || 0;
-    this.huesosFinales = data.huesos || 0; // Agregado por si manejás huesos en la UI
+    this.huesosFinales = data.huesos || 0; 
   }
 
   preload() {
@@ -53,65 +52,63 @@ export default class WinScene extends Phaser.Scene {
       align: "center",
     };
 
+    // Cambiamos el texto dinámicamente si es el final del juego
+    const esFinDelJuego = this.escenaOrigen === "Level3";
+
     this.add
-      .text(width / 2, height * 0.44, `¡Nivel Completado!`, {
+      .text(width / 2, height * 0.44, esFinDelJuego ? "¡COMPLETASTE LA AVENTURA! 🐾" : "¡Nivel Completado!", {
         ...estiloTexto,
         fontSize: `${32 * baseScale}px`,
-        fill: "#ffff00",
+        fill: esFinDelJuego ? "#00ff00" : "#ffff00", // Verde si ganó el juego
       })
       .setOrigin(0.5);
+
     this.add
-      .text(
-        width / 2,
-        height * 0.52,
-        `Puntos Totales: ${this.puntosFinales}`,
-        estiloTexto,
-      )
+      .text(width / 2, height * 0.52, `Puntos Totales: ${this.puntosFinales}`, estiloTexto)
       .setOrigin(0.5);
     this.add
-      .text(
-        width / 2,
-        height * 0.58,
-        `Vidas Restantes: x${this.vidasFinales}`,
-        estiloTexto,
-      )
+      .text(width / 2, height * 0.58, `Vidas Restantes: x${this.vidasFinales}`, estiloTexto)
       .setOrigin(0.5);
     this.add
-      .text(
-        width / 2,
-        height * 0.64,
-        `Tiempo de Juego: ${tiempoTexto}`,
-        estiloTexto,
-      )
+      .text(width / 2, height * 0.64, `Tiempo de Juego: ${tiempoTexto}`, estiloTexto)
       .setOrigin(0.5);
 
     // ============================================================================
-    // 🌟 PERSISTENCIA AUTOMÁTICA EN EL BACKEND (AL REESCRIBIR)
+    // 🌟 PERSISTENCIA AUTOMÁTICA EN EL BACKEND (INTEGRADA PARA NIVEL 3)
     // ============================================================================
     const usuarioIdRaw = localStorage.getItem("usuario_id");
     const usuarioId = usuarioIdRaw ? parseInt(usuarioIdRaw, 10) : null;
 
-    // Determinamos qué nivel va a quedar guardado en base al que acaba de ganar
-    let proximoNivel = 1;
-    if (this.escenaOrigen === "Level1") proximoNivel = 2;
-    if (this.escenaOrigen === "Level2") proximoNivel = 3;
-
     if (usuarioId) {
       try {
-        console.log("Guardando progreso automáticamente...");
-        // Mandamos los datos directo al endpoint '/api/save-game'
-        // Tu backend con pool se encarga del UPDATE si ya existe en la base de datos.
-        const respuesta = await authService.guardarPartida(
-          usuarioId,
-          proximoNivel,
-          this.vidasFinales,
-          this.huesosFinales,
-          this.puntosFinales,
-          this.tiempoFinal
-        );
-        console.log("¡Progreso de aventura guardado de forma automática!", respuesta);
+        if (esFinDelJuego) {
+          // 🏁 ESCENARIO A: Ganó el juego (Level3) -> Registramos ranking y borramos partida
+          console.log("¡Juego completado! Registrando score definitivo en el ranking...");
+          
+          const respuestaScore = await authService.registrarScoreFinal(
+            usuarioId,
+            this.puntosFinales,
+            this.tiempoFinal
+          );
+          console.log("Respuesta del ranking y borrado de partida:", respuestaScore);
+
+        } else {
+          // 🕹️ ESCENARIO B: Pasó Nivel 1 o Nivel 2 -> Guardamos progreso normal
+          let proximoNivel = this.escenaOrigen === "Level1" ? 2 : 3;
+          console.log(`Guardando progreso automáticamente para el Nivel ${proximoNivel}...`);
+          
+          const respuestaGuardado = await authService.guardarPartida(
+            usuarioId,
+            proximoNivel,
+            this.vidasFinales,
+            this.huesosFinales,
+            this.puntosFinales,
+            this.tiempoFinal
+          );
+          console.log("¡Progreso intermedio guardado!", respuestaGuardado);
+        }
       } catch (err) {
-        console.error("Error en el auto-guardado de victoria:", err);
+        console.error("Error en la persistencia automática de victoria:", err);
       }
     } else {
       console.warn("Auto-guardado saltado: usuario_id no encontrado en localStorage.");
@@ -133,7 +130,7 @@ export default class WinScene extends Phaser.Scene {
     btnExit.on("pointerdown", () => {
       this.scene.stop();
       this.scene.stop(this.escenaOrigen);
-      this.scene.start("MenuScene"); // Te manda al menú de inicio sin perder nada porque ya se guardó
+      this.scene.start("MenuScene"); 
     });
 
     // Botón Continue (A la derecha)
@@ -143,22 +140,31 @@ export default class WinScene extends Phaser.Scene {
       .setScale(escalaBotones)
       .setInteractive({ useHandCursor: true });
 
-    btnContinue.on("pointerdown", () => {
-      this.scene.stop();
-      this.scene.stop(this.escenaOrigen);
+    // Si es el nivel 3, podés ocultar el botón Continue o hacer que te mande a los Highscores/Menú
+    if (esFinDelJuego) {
+      // Opción estética: podés cambiarle la textura o dejar que "Continuar" te mande al menú
+      btnContinue.on("pointerdown", () => {
+        this.scene.stop();
+        this.scene.stop(this.escenaOrigen);
+        this.registry.set("puntos", 0);
+        this.registry.set("tiempo", 0);
+        this.scene.start("MenuScene"); // O "HighscoreScene" si tenés una pantalla de ranking
+      });
+    } else {
+      btnContinue.on("pointerdown", () => {
+        this.scene.stop();
+        this.scene.stop(this.escenaOrigen);
 
-      // Reseteamos el registry global para la nueva etapa
-      this.registry.set("puntos", 0);
-      this.registry.set("tiempo", 0);
+        this.registry.set("puntos", 0);
+        this.registry.set("tiempo", 0);
 
-      if (this.escenaOrigen === "Level1") {
-        this.scene.start("Level2");
-      } else if (this.escenaOrigen === "Level2") {
-        this.scene.start("Level3");
-      } else {
-        this.scene.start("MenuScene");
-      }
-    });
+        if (this.escenaOrigen === "Level1") {
+          this.scene.start("Level2");
+        } else if (this.escenaOrigen === "Level2") {
+          this.scene.start("Level3");
+        }
+      });
+    }
 
     // Efecto visual hover para los botones
     [btnExit, btnContinue].forEach((btn) => {

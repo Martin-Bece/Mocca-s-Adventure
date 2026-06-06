@@ -28,6 +28,10 @@ export default class Level3 extends EscenaBase {
       frameWidth: 64,
       frameHeight: 64,
     });
+    this.load.spritesheet("mocca_run", "./Assets/Mocca_run_right.png", {
+      frameWidth: 64,
+      frameHeight: 64,
+    });
     this.load.image("ground", "./Assets/ground2.png");
 
     // Plataformas nuevas para el nivel 3
@@ -38,10 +42,10 @@ export default class Level3 extends EscenaBase {
     // Audios
     this.load.audio("bark_sound", "./Audio/bark_sound.mp3");
     this.load.audio("comer_hueso", "./Audio/comer_hueso.mp3");
-    this.load.audio("obtener_vida", "./Audio/getLife.mp3"); 
+    this.load.audio("obtener_vida", "./Audio/getLife.mp3");
     this.load.audio("mocca_daño", "./Audio/mocca_daño.mp3");
     this.load.audio("gato_daño", "./Audio/gato_daño.mp3");
-    this.load.audio("level_2", "./Audio/level_2.ogg"); // Puedes cambiar la clave si tienes track para Lvl3
+    this.load.audio("level_2", "./Audio/level_3.wav");
     this.load.audio("mocca_jump", "./Audio/mocca_jump.wav");
     this.load.audio("auto_sound", "./Audio/auto_sound.mp3");
     this.load.audio("avion_sound", "./Audio/avion_sound.mp3");
@@ -51,7 +55,7 @@ export default class Level3 extends EscenaBase {
       frameWidth: 64,
       frameHeight: 64,
     });
-    
+
     this.load.image("auto", "./Assets/car.png");
     this.load.image("avion", "./Assets/avion.png");
 
@@ -76,7 +80,7 @@ export default class Level3 extends EscenaBase {
     let texturaOriginal = this.textures.get("background3").getSourceImage();
     let factorEscalaFinal = Math.max(
       width / texturaOriginal.width,
-      height / texturaOriginal.height
+      height / texturaOriginal.height,
     );
     this.fondoParallax.tileScaleX = factorEscalaFinal;
     this.fondoParallax.tileScaleY = factorEscalaFinal;
@@ -101,13 +105,16 @@ export default class Level3 extends EscenaBase {
     if (!this.anims.exists("huesito_rotate")) {
       this.anims.create({
         key: "huesito_rotate",
-        frames: this.anims.generateFrameNumbers("huesito", { start: 0, end: 4 }),
+        frames: this.anims.generateFrameNumbers("huesito", {
+          start: 0,
+          end: 4,
+        }),
         frameRate: 7,
         repeat: -1,
       });
     }
 
-    // Animaciones de Mocca (Salvaguarda de redundancias)
+    // Animaciones de Mocca
     if (!this.anims.exists("idle")) {
       this.anims.create({
         key: "idle",
@@ -117,85 +124,114 @@ export default class Level3 extends EscenaBase {
       });
       this.anims.create({
         key: "run",
-        frames: this.anims.generateFrameNumbers("mocca_run", { start: 0, end: 2 }),
+        frames: this.anims.generateFrameNumbers("mocca_run", {
+          start: 0,
+          end: 2,
+        }),
         frameRate: 7,
         repeat: -1,
       });
       this.anims.create({
         key: "jump",
-        frames: this.anims.generateFrameNumbers("mocca_jump", { start: 0, end: 3 }),
+        frames: this.anims.generateFrameNumbers("mocca_jump", {
+          start: 0,
+          end: 3,
+        }),
         frameRate: 2,
         repeat: 0,
       });
       this.anims.create({
         key: "bark_idle",
-        frames: this.anims.generateFrameNumbers("mocca_bark", { start: 0, end: 0 }),
+        frames: this.anims.generateFrameNumbers("mocca_bark", {
+          start: 0,
+          end: 0,
+        }),
         frameRate: 1,
         repeat: 0,
       });
     }
 
     // ============================================================================
-    // --- DISEÑO ESTRUCTURAL: ARRAY DE PLATAFORMAS (MÉTODO MARIO BROS) ---
+    // --- DISEÑO ESTRUCTURAL: ARRAY DE PLATAFORMAS ---
     // ============================================================================
-    // Tipos válidos: "corta" (110px), "mediana" (197px), "larga" (360px)
     const diseñoNivel3 = [
-      { x: 450,  y: height - 150, tipo: "corta" },
-      { x: 750,  y: height - 220, tipo: "mediana" },
-      { x: 1100, y: height - 160, tipo: "larga" }, // <-- Tendrá auto patrullando
+      { x: 450, y: height - 150, tipo: "corta" },
+      { x: 750, y: height - 220, tipo: "mediana" },
+      { x: 1100, y: height - 160, tipo: "larga" },
       { x: 1500, y: height - 240, tipo: "corta" },
       { x: 1850, y: height - 310, tipo: "mediana" },
-      { x: 2300, y: height - 180, tipo: "larga" }, // <-- Tendrá auto patrullando
+      { x: 2300, y: height - 180, tipo: "larga" },
       { x: 2800, y: height - 140, tipo: "corta" },
       { x: 3100, y: height - 220, tipo: "mediana" },
-      { x: 3500, y: height - 280, tipo: "larga" }, // <-- Tendrá auto patrullando
+      { x: 3500, y: height - 280, tipo: "larga" },
       { x: 4000, y: height - 160, tipo: "corta" },
       { x: 4400, y: height - 240, tipo: "mediana" },
-      { x: 4900, y: height - 200, tipo: "larga" }, // <-- Tendrá auto patrullando
+      { x: 4900, y: height - 200, tipo: "larga" },
       { x: 5400, y: height - 150, tipo: "corta" },
       { x: 5800, y: height - 230, tipo: "mediana" },
-      { x: 6300, y: height - 300, tipo: "larga" }, // <-- Tendrá auto patrullando
+      { x: 6300, y: height - 300, tipo: "larga" },
       { x: 6800, y: height - 160, tipo: "corta" },
       { x: 7200, y: height - 240, tipo: "mediana" },
-      { x: 7700, y: height - 180, tipo: "larga" }, // <-- Tendrá auto patrullando
+      { x: 7700, y: height - 180, tipo: "larga" },
       { x: 8200, y: height - 260, tipo: "corta" },
       { x: 8600, y: height - 310, tipo: "mediana" },
-      { x: 9100, y: height - 200, tipo: "larga" }, // <-- Tendrá auto patrullando
-      { x: 9600, y: height - 140, tipo: "mediana" }
+      { x: 9100, y: height - 200, tipo: "larga" },
+      { x: 9600, y: height - 140, tipo: "mediana" },
     ];
 
     // --- PROCESAMIENTO GENERATIVO DE PLATAFORMAS ---
     diseñoNivel3.forEach((plat) => {
       let keyAsset = "plat_" + plat.tipo;
       let plataformaInstancia = this.platforms.create(plat.x, plat.y, keyAsset);
-      
+
       plataformaInstancia.refreshBody();
 
-      // Configuración de One-Way Platform (Atravesables desde abajo)
       plataformaInstancia.body.checkCollision.down = false;
       plataformaInstancia.body.checkCollision.left = false;
       plataformaInstancia.body.checkCollision.right = false;
 
-      // Distribución lógica de ítems recolectables (Huesos)
       if (plat.tipo === "corta") {
-        bones.create(plat.x, plat.y - 40, "huesito").body.setAllowGravity(false);
-      } else if (plat.tipo === "mediana") {
-        bones.create(plat.x - 35, plat.y - 45, "huesito").body.setAllowGravity(false);
-        bones.create(plat.x + 35, plat.y - 45, "huesito").body.setAllowGravity(false);
-      } else if (plat.tipo === "larga") {
-        // En las largas agregamos 3 huesos distribuidos
-        bones.create(plat.x - 80, plat.y - 45, "huesito").body.setAllowGravity(false);
-        bones.create(plat.x, plat.y - 65, "huesito").body.setAllowGravity(false);
-        bones.create(plat.x + 80, plat.y - 45, "huesito").body.setAllowGravity(false);
 
-        // CONDICIÓN: Enemigo terrestre patrullando en plataformas largas (Auto)
-        let autoEnemigo = this.enemigos.create(plat.x, plat.y - 55, "auto");
-        autoEnemigo.setScale(0.25); // Reducido proporcionalmente de su escala original 360x360
-        autoEnemigo.body.setSize(260, 160);
-        autoEnemigo.body.setOffset(50, 100);
-        
+        plataformaInstancia.body.setSize(100, 1);
+        plataformaInstancia.body.setOffset(1, 10);
+
+        bones
+          .create(plat.x, plat.y - 40, "huesito")
+          .body.setAllowGravity(false);
+      } else if (plat.tipo === "mediana") {
+
+        plataformaInstancia.body.setSize(170, 1);
+        plataformaInstancia.body.setOffset(10, 14);
+
+        bones
+          .create(plat.x - 35, plat.y - 45, "huesito")
+          .body.setAllowGravity(false);
+        bones
+          .create(plat.x + 35, plat.y - 45, "huesito")
+          .body.setAllowGravity(false);
+      } else if (plat.tipo === "larga") {
+
+        plataformaInstancia.body.setSize(330, 1);
+        plataformaInstancia.body.setOffset(10, 14);
+
+        bones
+          .create(plat.x - 80, plat.y - 45, "huesito")
+          .body.setAllowGravity(false);
+        bones
+          .create(plat.x, plat.y - 65, "huesito")
+          .body.setAllowGravity(false);
+        bones
+          .create(plat.x + 80, plat.y - 45, "huesito")
+          .body.setAllowGravity(false);
+
+        // --- AUTO EN PLATAFORMA LARGA ---
+        let autoEnemigo = this.enemigos.create(plat.x, plat.y - 50, "auto");
+        autoEnemigo.setScale(0.18);
+        autoEnemigo.body.setSize(270, 150);
+        autoEnemigo.body.setOffset(45, 120);
+
         autoEnemigo.speed = 90;
-        autoEnemigo.distaciaPatrulla = 120; // Rango de ida y vuelta sobre el bloque largo
+        autoEnemigo.distaciaPatrulla = 120;
         autoEnemigo.puntoInicialX = plat.x;
         autoEnemigo.esVolador = false;
         autoEnemigo.isStunned = false;
@@ -203,15 +239,15 @@ export default class Level3 extends EscenaBase {
       }
     });
 
-    // --- ENEMIGOS TERRESTRES EN EL SUELO (Autos de tráfico) ---
+    // --- ENEMIGOS TERRESTRES EN EL SUELO ---
     for (let posX = 700; posX < 10000; posX += 550) {
-      let autoSuelo = this.enemigos.create(posX, height - 100, "auto");
-      autoSuelo.setScale(0.28);
-      autoSuelo.body.setSize(260, 160);
-      autoSuelo.body.setOffset(50, 100);
+      let autoSuelo = this.enemigos.create(posX, height - 110, "auto");
+      autoSuelo.setScale(0.2);
+      autoSuelo.body.setSize(270, 140);
+      autoSuelo.body.setOffset(45, 120);
       autoSuelo.setCollideWorldBounds(true);
-      
-      autoSuelo.speed = 130; // Más rápido que el de las plataformas
+
+      autoSuelo.speed = 130;
       autoSuelo.distaciaPatrulla = 180;
       autoSuelo.puntoInicialX = posX;
       autoSuelo.esVolador = false;
@@ -219,19 +255,19 @@ export default class Level3 extends EscenaBase {
       autoSuelo.setVelocityX(autoSuelo.speed);
     }
 
-    // --- ENEMIGOS AÉREOS (Aviones sin gravedad) ---
+    // --- ENEMIGOS AÉREOS (Hitbox personalizado intacto) ---
     let alternarAlturaAvion = 0;
     for (let posX = 900; posX < 10000; posX += 650) {
-      let alturaAvion = height - 280;
-      if (alternarAlturaAvion === 1) alturaAvion = height - 360;
+      let alturaAvion = height - 300;
+      if (alternarAlturaAvion === 1) alturaAvion = height - 380;
       alternarAlturaAvion = (alternarAlturaAvion + 1) % 2;
 
       let avion = this.enemigos.create(posX, alturaAvion, "avion");
-      avion.setScale(1.1); // Medida base 64x64 óptima
+      avion.setScale(2.2);
 
-      avion.body.setSize(54, 40);
-      avion.body.setOffset(5, 12);
-      avion.body.setAllowGravity(false); // Inmune a la fuerza de gravedad
+      avion.body.setSize(27, 12);
+      avion.body.setOffset(19, 25);
+      avion.body.setAllowGravity(false);
       avion.setCollideWorldBounds(true);
 
       avion.speed = 100;
@@ -260,9 +296,14 @@ export default class Level3 extends EscenaBase {
     this.physics.add.collider(this.enemigos, this.ground);
     this.physics.add.collider(this.enemigos, this.platforms);
     this.physics.add.overlap(this.mocca, bones, this.collectBone, null, this);
-    this.physics.add.overlap(this.mocca, this.enemigos, this.hitEnemigo, null, this);
+    this.physics.add.overlap(
+      this.mocca,
+      this.enemigos,
+      this.hitEnemigo,
+      null,
+      this,
+    );
 
-    // Control para bajar de las plataformas atravesables (One-Way)
     this.physics.add.collider(
       this.mocca,
       this.platforms,
@@ -271,7 +312,7 @@ export default class Level3 extends EscenaBase {
         if (this.cursors.down.isDown) return false;
         return true;
       },
-      this
+      this,
     );
 
     // Efecto visual flotante de los huesos
@@ -301,7 +342,7 @@ export default class Level3 extends EscenaBase {
       .image(
         width - margenDerecho,
         margenSuperior,
-        audioManager.isMuted(this) ? "Mute" : "Unmute"
+        audioManager.isMuted(this) ? "Mute" : "Unmute",
       )
       .setOrigin(0.5)
       .setScale(escalaBotonesUI)
@@ -360,5 +401,57 @@ export default class Level3 extends EscenaBase {
     this.events.on("shutdown", () => {
       this.scale.off("resize", this.levelResizeHandler);
     });
+  }
+
+  // --- COMPORTAMIENTO DE MOVIMIENTO / PATRULLA EN TIEMPO REAL ---
+  update(time, delta) {
+    // 🌟 1. LLAMAMOS AL UPDATE DE ESCENABASE
+    // Esto ejecuta manejarMovimientoMocca() y maneja la victoria.
+    super.update(time, delta);
+
+    // 🛑 CLÁUSULA DE GUARDA: Si el nivel ya se completó, frenamos el código acá
+    // Evita que los enemigos sigan procesando su patrullaje mientras la escena se pausa.
+    if (this.nivelCompletado) return;
+
+    // 🌟 2. PATRULLAJE EXCLUSIVO CON GIRO ADAPTADO PARA ESTE NIVEL
+    // Maneja el comportamiento único de los aviones y los autos sin pisar lo de Mocca
+    if (this.enemigos) {
+      this.enemigos.children.iterate((enemigo) => {
+        if (enemigo && enemigo.active && enemigo.body) {
+          if (enemigo.isStunned) return;
+
+          let diffX = Math.abs(enemigo.x - enemigo.puntoInicialX);
+
+          if (diffX >= enemigo.distaciaPatrulla) {
+            if (
+              enemigo.x > enemigo.puntoInicialX &&
+              enemigo.body.velocity.x > 0
+            ) {
+              enemigo.setVelocityX(-enemigo.speed);
+            } else if (
+              enemigo.x < enemigo.puntoInicialX &&
+              enemigo.body.velocity.x < 0
+            ) {
+              enemigo.setVelocityX(enemigo.speed);
+            }
+          }
+
+          // --- ORIENTACIÓN CORRECTA DE SPRITES EN NIVEL 3 ---
+          if (enemigo.texture.key === "avion") {
+            if (enemigo.body.velocity.x > 0) {
+              enemigo.setFlipX(false); // Avanza a la derecha, se des-espeja
+            } else if (enemigo.body.velocity.x < 0) {
+              enemigo.setFlipX(true);  // Avanza a la izquierda, se espeja
+            }
+          } else {
+            if (enemigo.body.velocity.x > 0) {
+              enemigo.setFlipX(true);  // Autos mirando a la derecha
+            } else if (enemigo.body.velocity.x < 0) {
+              enemigo.setFlipX(false); // Autos mirando a la izquierda
+            }
+          }
+        }
+      });
+    }
   }
 }

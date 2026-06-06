@@ -1,8 +1,8 @@
-import express from 'express';
-import pkg from 'pg';
-import dotenv from 'dotenv';
-import cors from 'cors';
-import bcrypt from 'bcrypt'; // <--- Nueva dependencia
+import express from "express";
+import pkg from "pg";
+import dotenv from "dotenv";
+import cors from "cors";
+import bcrypt from "bcrypt"; // <--- Nueva dependencia
 
 dotenv.config();
 
@@ -10,11 +10,13 @@ const { Pool } = pkg;
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors({
-  origin: '*', // Permite que tu Live Server local y luego Vercel se conecten sin bloqueos
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
+app.use(
+  cors({
+    origin: "*", // Permite que tu Live Server local y luego Vercel se conecten sin bloqueos
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 app.use(express.json());
 
 const pool = new Pool({
@@ -23,28 +25,35 @@ const pool = new Pool({
 
 pool.connect((err, client, release) => {
   if (err) {
-    return console.error('❌ Error al conectar a Supabase:', err.stack);
+    return console.error("❌ Error al conectar a Supabase:", err.stack);
   }
-  console.log('✨ Conectado exitosamente a Supabase (PostgreSQL)');
+  console.log("✨ Conectado exitosamente a Supabase (PostgreSQL)");
   release();
 });
 
 // ==========================================
 // ENDPOINT: REGISTRO DE USUARIOS
 // ==========================================
-app.post('/api/register', async (req, res) => {
+app.post("/api/register", async (req, res) => {
   const { username, password } = req.body;
 
   // Validación básica por si mandan datos vacíos
   if (!username || !password) {
-    return res.status(400).json({ error: 'Usuario y contraseña son requeridos.' });
+    return res
+      .status(400)
+      .json({ error: "Usuario y contraseña son requeridos." });
   }
 
   try {
     // 1. Verificar si el usuario ya existe en tu tabla 'usuarios'
-    const userCheck = await pool.query('SELECT * FROM usuarios WHERE username = $1', [username]);
+    const userCheck = await pool.query(
+      "SELECT * FROM usuarios WHERE username = $1",
+      [username],
+    );
     if (userCheck.rows.length > 0) {
-      return res.status(400).json({ error: 'El nombre de usuario ya está registrado.' });
+      return res
+        .status(400)
+        .json({ error: "El nombre de usuario ya está registrado." });
     }
 
     // 2. Encriptar la contraseña (hash de 10 rondas)
@@ -53,38 +62,44 @@ app.post('/api/register', async (req, res) => {
 
     // 3. Insertar el nuevo usuario en tu base de datos
     const nuevoUsuario = await pool.query(
-      'INSERT INTO usuarios (username, password) VALUES ($1, $2) RETURNING id, username, fecha_registro',
-      [username, hashedPassword]
+      "INSERT INTO usuarios (username, password) VALUES ($1, $2) RETURNING id, username, fecha_registro",
+      [username, hashedPassword],
     );
 
     // 4. Responder con éxito devolviendo los datos públicos del usuario
     res.status(201).json({
-      message: '¡Usuario registrado con éxito! 🐾',
-      user: nuevoUsuario.rows[0]
+      message: "¡Usuario registrado con éxito! 🐾",
+      user: nuevoUsuario.rows[0],
     });
-
   } catch (error) {
-    console.error('Error en el servidor al registrar:', error);
-    res.status(500).json({ error: 'Hubo un problema en el servidor.' });
+    console.error("Error en el servidor al registrar:", error);
+    res.status(500).json({ error: "Hubo un problema en el servidor." });
   }
 });
 
 // ==========================================
 // ENDPOINT: INICIO DE SESIÓN (LOGIN)
 // ==========================================
-app.post('/api/login', async (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { username, password } = req.body;
 
   if (!username || !password) {
-    return res.status(400).json({ error: 'Usuario y contraseña son requeridos.' });
+    return res
+      .status(400)
+      .json({ error: "Usuario y contraseña son requeridos." });
   }
 
   try {
     // 1. Buscar si el usuario existe en tu base de datos
-    const userResult = await pool.query('SELECT * FROM usuarios WHERE username = $1', [username]);
-    
+    const userResult = await pool.query(
+      "SELECT * FROM usuarios WHERE username = $1",
+      [username],
+    );
+
     if (userResult.rows.length === 0) {
-      return res.status(400).json({ error: 'El usuario o la contraseña son incorrectos.' });
+      return res
+        .status(400)
+        .json({ error: "El usuario o la contraseña son incorrectos." });
     }
 
     const usuario = userResult.rows[0];
@@ -93,21 +108,22 @@ app.post('/api/login', async (req, res) => {
     const match = await bcrypt.compare(password, usuario.password);
 
     if (!match) {
-      return res.status(400).json({ error: 'El usuario o la contraseña son incorrectos.' });
+      return res
+        .status(400)
+        .json({ error: "El usuario o la contraseña son incorrectos." });
     }
 
     // 3. Si coincide, respondemos con éxito devolviendo los datos del usuario
     res.status(200).json({
-      message: '¡Ingreso exitoso! Bienvenido de nuevo 🐾',
+      message: "¡Ingreso exitoso! Bienvenido de nuevo 🐾",
       user: {
         id: usuario.id,
-        username: usuario.username
-      }
+        username: usuario.username,
+      },
     });
-
   } catch (error) {
-    console.error('Error en el servidor al loguear:', error);
-    res.status(500).json({ error: 'Hubo un problema en el servidor.' });
+    console.error("Error en el servidor al loguear:", error);
+    res.status(500).json({ error: "Hubo un problema en el servidor." });
   }
 });
 
@@ -116,23 +132,26 @@ app.post('/api/login', async (req, res) => {
 // ============================================================================
 
 // 🌟 1. GUARDAR PARTIDA (Al pasar de nivel o guardar desde el menú de pausa)
-app.post('/api/savegame', async (req, res) => {
-  const { 
-    usuario_id, 
-    nivel_actual, 
-    vidas, 
-    huesos_recolectados, 
-    puntos_a_acumular, 
-    tiempo_a_acumular 
+app.post("/api/savegame", async (req, res) => {
+  const {
+    usuario_id,
+    nivel_actual,
+    vidas,
+    huesos_recolectados,
+    puntos_a_acumular,
+    tiempo_a_acumular,
   } = req.body;
 
   if (!usuario_id) {
-    return res.status(400).json({ error: 'Falta el usuario_id' });
+    return res.status(400).json({ error: "Falta el usuario_id" });
   }
 
   try {
     // Buscamos con query nativo si el usuario ya tiene una partida registrada
-    const partidaCheck = await pool.query('SELECT * FROM partidas WHERE usuario_id = $1', [usuario_id]);
+    const partidaCheck = await pool.query(
+      "SELECT * FROM partidas WHERE usuario_id = $1",
+      [usuario_id],
+    );
     const partidaPrevia = partidaCheck.rows[0];
 
     let nuevoPuntajeAcumulado = Number(puntos_a_acumular || 0);
@@ -140,86 +159,136 @@ app.post('/api/savegame', async (req, res) => {
 
     if (partidaPrevia) {
       // Sumamos lo del nivel completado al acumulado histórico que ya traía
-      nuevoPuntajeAcumulado = Number(partidaPrevia.puntaje_acumulado) + nuevoPuntajeAcumulado;
-      nuevoTiempoAcumulado = Number(partidaPrevia.tiempo_acumulado) + nuevoTiempoAcumulado;
+      nuevoPuntajeAcumulado =
+        Number(partidaPrevia.puntaje_acumulado) + nuevoPuntajeAcumulado;
+      nuevoTiempoAcumulado =
+        Number(partidaPrevia.tiempo_acumulado) + nuevoTiempoAcumulado;
 
       await pool.query(
         `UPDATE partidas 
          SET nivel_actual = $1, vidas = $2, huesos_recolectados = $3, puntaje_acumulado = $4, tiempo_acumulado = $5, fecha_guardado = NOW() 
          WHERE usuario_id = $6`,
-        [nivel_actual, vidas, huesos_recolectados, nuevoPuntajeAcumulado, nuevoTiempoAcumulado, usuario_id]
+        [
+          nivel_actual,
+          vidas,
+          huesos_recolectados,
+          nuevoPuntajeAcumulado,
+          nuevoTiempoAcumulado,
+          usuario_id,
+        ],
       );
     } else {
       // Primera vez que guarda en el juego
       await pool.query(
         `INSERT INTO partidas (usuario_id, nivel_actual, vidas, huesos_recolectados, puntaje_acumulado, tiempo_acumulado) 
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [usuario_id, nivel_actual, vidas, huesos_recolectados, nuevoPuntajeAcumulado, nuevoTiempoAcumulado]
+        [
+          usuario_id,
+          nivel_actual,
+          vidas,
+          huesos_recolectados,
+          nuevoPuntajeAcumulado,
+          nuevoTiempoAcumulado,
+        ],
       );
     }
 
-    return res.json({ 
-      message: 'Partida resguardada con éxito', 
+    return res.json({
+      message: "Partida resguardada con éxito",
       puntaje_total_acumulado: nuevoPuntajeAcumulado,
-      tiempo_total_acumulado: nuevoTiempoAcumulado
+      tiempo_total_acumulado: nuevoTiempoAcumulado,
     });
-
   } catch (error) {
-    console.error('Error en backend al guardar partida:', error);
-    res.status(500).json({ error: 'Error al procesar el guardado de la partida' });
+    console.error("Error en backend al guardar partida:", error);
+    res
+      .status(500)
+      .json({ error: "Error al procesar el guardado de la partida" });
   }
 });
 
-
 // 🌟 2. REGISTRAR EN EL RANKING FINAL (Cuando completa el juego o muere definitivamente)
-app.post('/api/savescore', async (req, res) => {
+app.post("/api/savescore", async (req, res) => {
   const { usuario_id, puntos_ultimo_nivel, tiempo_ultimo_nivel } = req.body;
 
   if (!usuario_id) {
-    return res.status(400).json({ error: 'Falta el usuario_id' });
+    return res.status(400).json({ error: "Falta el usuario_id" });
   }
 
   try {
-    // Traemos lo acumulado usando pool
-    const partidaCheck = await pool.query('SELECT puntaje_acumulado, tiempo_acumulado FROM partidas WHERE usuario_id = $1', [usuario_id]);
+    // 1. Traemos lo acumulado usando pool
+    const partidaCheck = await pool.query(
+      "SELECT puntaje_acumulado, tiempo_acumulado FROM partidas WHERE usuario_id = $1",
+      [usuario_id],
+    );
     const partida = partidaCheck.rows[0];
 
     if (!partida) {
-      return res.status(404).json({ error: 'No se encontró una partida previa para este usuario.' });
+      return res.status(404).json({
+        error: "No se encontró una partida previa para este usuario.",
+      });
     }
 
-    const puntajeFinalDeLaAventura = Number(partida.puntaje_acumulado) + Number(puntos_ultimo_nivel || 0);
-    const tiempoFinalDeLaAventura = Number(partida.tiempo_acumulado) + Number(tiempo_ultimo_nivel || 0);
+    const puntajeFinalDeLaAventura =
+      Number(partida.puntaje_acumulado) + Number(puntos_ultimo_nivel || 0);
+    const tiempoFinalDeLaAventura =
+      Number(partida.tiempo_acumulado) + Number(tiempo_ultimo_nivel || 0);
 
-    // Buscamos si ya tiene un récord previo guardado en 'scores'
-    const scoreCheck = await pool.query('SELECT * FROM scores WHERE usuario_id = $1', [usuario_id]);
+    // 2. Buscamos si ya tiene un récord previo guardado en 'scores'
+    const scoreCheck = await pool.query(
+      "SELECT * FROM scores WHERE usuario_id = $1",
+      [usuario_id],
+    );
     const scorePrevio = scoreCheck.rows[0];
+
+    let mensajeRespuesta = "";
 
     if (scorePrevio) {
       if (puntajeFinalDeLaAventura > scorePrevio.puntaje_total) {
         await pool.query(
           `UPDATE scores SET puntaje_total = $1, tiempo_final = $2, fecha_logro = NOW() WHERE usuario_id = $3`,
-          [puntajeFinalDeLaAventura, tiempoFinalDeLaAventura, usuario_id]
+          [puntajeFinalDeLaAventura, tiempoFinalDeLaAventura, usuario_id],
         );
-        return res.json({ message: '¡Nuevo récord histórico superado!', puntaje: puntajeFinalDeLaAventura });
+        mensajeRespuesta = "¡Nuevo récord histórico superado!";
+      } else {
+        mensajeRespuesta = "Aventura terminada, pero no superó tu récord máximo.";
       }
-      return res.json({ message: 'Aventura terminada, pero no superó tu récord máximo.', puntaje: puntajeFinalDeLaAventura });
     } else {
       await pool.query(
         `INSERT INTO scores (usuario_id, puntaje_total, tiempo_final) VALUES ($1, $2, $3)`,
-        [usuario_id, puntajeFinalDeLaAventura, tiempoFinalDeLaAventura]
+        [usuario_id, puntajeFinalDeLaAventura, tiempoFinalDeLaAventura],
       );
-      return res.json({ message: '¡Aventura completada! Entraste al ranking por primera vez.', puntaje: puntajeFinalDeLaAventura });
+      mensajeRespuesta = "¡Aventura completada! Entraste al ranking por primera vez.";
     }
+
+    // =======================================================================
+    // 🔄 REINICIAR LA PARTIDA A VALORES INICIALES (EN VEZ DE BORRARLA)
+    // =======================================================================
+    // Reseteamos el progreso para que no se acumulen puntos infinitos,
+    // pero mantenemos la fila del usuario intacta en la base de datos.
+    await pool.query(
+      `UPDATE partidas 
+       SET nivel_actual = 1, 
+           vidas = 3, 
+           huesos = 0, 
+           puntaje_acumulado = 0, 
+           tiempo_acumulado = 0 
+       WHERE usuario_id = $1`,
+      [usuario_id]
+    );
+
+    return res.json({
+      message: mensajeRespuesta,
+      puntaje: puntajeFinalDeLaAventura,
+      partidaFinalizada: true, // Avisamos al frontend que terminó esta vuelta del juego
+    });
   } catch (error) {
-    console.error('Error en backend al salvar score:', error);
-    res.status(500).json({ error: 'Error al registrar el Score en el ranking' });
+    console.error("Error en backend al salvar score:", error);
+    res.status(500).json({ error: "Error al registrar el Score en el ranking" });
   }
 });
 
-
 // 🌟 3. LEER EL TOP 5 DE HIGHSCORES (Para armar la tabla de posiciones en la UI)
-app.get('/api/highscores', async (req, res) => {
+app.get("/api/highscores", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT s.puntaje_total, s.tiempo_final, u.username 
@@ -229,38 +298,44 @@ app.get('/api/highscores', async (req, res) => {
       LIMIT 5
     `);
 
-    const top5 = result.rows.map(item => ({
-      username: item.username || 'Anónimo',
+    const top5 = result.rows.map((item) => ({
+      username: item.username || "Anónimo",
       score: item.puntaje_total,
-      tiempo: item.tiempo_final
+      tiempo: item.tiempo_final,
     }));
 
     res.json(top5);
   } catch (error) {
-    console.error('Error en backend al traer highscores:', error);
-    res.status(500).json({ error: 'Error al obtener la tabla de highscores' });
+    console.error("Error en backend al traer highscores:", error);
+    res.status(500).json({ error: "Error al obtener la tabla de highscores" });
   }
 });
 
 // 🌟 4. OBTENER LA PARTIDA GUARDADA DE UN USUARIO (Para el botón Continuar)
-app.get('/api/get-game/:usuario_id', async (req, res) => {
+app.get("/api/get-game/:usuario_id", async (req, res) => {
   const { usuario_id } = req.params;
 
   if (!usuario_id) {
-    return res.status(400).json({ error: 'Falta el usuario_id en los parámetros' });
+    return res
+      .status(400)
+      .json({ error: "Falta el usuario_id en los parámetros" });
   }
 
   try {
     const result = await pool.query(
-      'SELECT nivel_actual, vidas, huesos_recolectados, puntaje_acumulado, tiempo_acumulado FROM partidas WHERE usuario_id = $1',
-      [usuario_id]
+      "SELECT nivel_actual, vidas, huesos_recolectados, puntaje_acumulado, tiempo_acumulado FROM partidas WHERE usuario_id = $1",
+      [usuario_id],
     );
 
     const partida = result.rows[0];
 
     if (!partida) {
       // Devolvemos 404 si el usuario existe pero nunca guardó partida (es normal)
-      return res.status(404).json({ message: 'No se encontró progreso guardado para este usuario.' });
+      return res
+        .status(404)
+        .json({
+          message: "No se encontró progreso guardado para este usuario.",
+        });
     }
 
     // Mapeamos los nombres para que el frontend los entienda al vuelo
@@ -269,18 +344,19 @@ app.get('/api/get-game/:usuario_id', async (req, res) => {
       vidas: Number(partida.vidas),
       huesos: Number(partida.huesos_recolectados),
       puntaje: Number(partida.puntaje_acumulado),
-      tiempo_jugado: Number(partida.tiempo_acumulado)
+      tiempo_jugado: Number(partida.tiempo_acumulado),
     });
-
   } catch (error) {
-    console.error('Error en backend al obtener partida:', error);
-    res.status(500).json({ error: 'Error al procesar la solicitud en el servidor' });
+    console.error("Error en backend al obtener partida:", error);
+    res
+      .status(500)
+      .json({ error: "Error al procesar la solicitud en el servidor" });
   }
 });
 
 // Ruta base
-app.get('/', (req, res) => {
-  res.send('Servidor de Mocca\'s Adventure corriendo impecable 🐾');
+app.get("/", (req, res) => {
+  res.send("Servidor de Mocca's Adventure corriendo impecable 🐾");
 });
 
 app.listen(PORT, () => {

@@ -59,9 +59,16 @@ export default class MenuScene extends Phaser.Scene {
     if (usuarioId) {
       try {
         const data = await authService.obtenerPartida(usuarioId);
+        
+        // 🚨 MODIFICACIÓN: Una partida es "real" si existe, no está en Nivel 1 con 0 puntos,
+        // o si al menos tiene un puntaje acumulado mayor a 0 si estuviera en Nivel 1.
         if (data && data.nivel_actual) {
-          this.cachedPartida = data; 
-          tienePartida = true;
+          const esPartidaReseteada = (parseInt(data.nivel_actual, 10) === 1 && Number(data.puntaje_acumulado || 0) === 0);
+          
+          if (!esPartidaReseteada) {
+            this.cachedPartida = data; 
+            tienePartida = true;
+          }
         }
       } catch (error) {
         console.log("No se encontró partida previa o error de conexión:", error);
@@ -114,7 +121,7 @@ export default class MenuScene extends Phaser.Scene {
       console.log("Cargando datos recuperados del servidor...", this.cachedPartida);
 
       this.registry.set("vidas", this.cachedPartida.vidas ?? 3);
-      this.registry.set("puntos", this.cachedPartida.puntaje ?? 0);
+      this.registry.set("puntos", 0);
       this.registry.set("tiempo", this.cachedPartida.tiempo_jugado ?? 0);
       this.registry.set("huesos", this.cachedPartida.huesos ?? 0);
 
@@ -149,7 +156,6 @@ export default class MenuScene extends Phaser.Scene {
       this.scene.launch("CreditsScene");
     });
 
-    // --- 🏆 NUEVO: BOTÓN HIGHSCORES (ARRIBA A LA IZQUIERDA) 🏆 ---
     let btnHighscores = this.add
       .image(40, 40, "Highscores")
       .setOrigin(0.5)
