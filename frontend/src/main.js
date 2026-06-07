@@ -9,6 +9,7 @@ import Level2 from "./scenes/Level2.js";
 import WinScene from "./scenes/WinScene.js";
 import HighscoresScene from "./scenes/HighscoresScene.js";
 import Level3 from "./scenes/Level3.js";
+import GameOver from "./scenes/GameOver.js";
 
 // ============================================================================
 // --- CONFIGURACIÓN E INICIALIZACIÓN ---
@@ -44,6 +45,7 @@ const config = {
     WinScene,
     HighscoresScene,
     Level3,
+    GameOver,
   ],
 };
 

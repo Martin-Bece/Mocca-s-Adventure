@@ -47,7 +47,7 @@ export default class PerderVida extends Phaser.Scene {
       if (vidasRestantes > 0) {
         this.scene.start(this.nivelDeOrigen);
       } else {
-        this.scene.start("MenuScene");
+        this.scene.start("GameOver");
       }
     });
   }
