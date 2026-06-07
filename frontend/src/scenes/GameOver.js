@@ -11,17 +11,17 @@ export default class GameOver extends Phaser.Scene {
 
   preload() {
     this.load.image("gameover_img", "./Assets/gameover_img.png");
-    this.load.image("Restart", "./Assets/Restart.png");
-    this.load.image("Exit", "./Assets/Exit.png");
+    this.load.image("Restart", "./Assets/Botones/Restart.png"); // Corregida la ruta para usar tu carpeta Botones
+    this.load.image("Exit", "./Assets/Botones/Exit.png");       // Corregida la ruta para usar tu carpeta Botones
   }
 
   create() {
     const { width, height } = this.scale;
     const baseScale = height / 768;
 
-    // Recuperamos el ID del usuario desde el Registry de Phaser
-    // NOTA: Asegurate de setear "usuarioId" en el registry cuando el jugador se loguea
-    this.usuarioId = this.registry.get("usuarioId") || 1; // Un fallback por si acaso
+    // 1. Recuperamos el usuario_id de localStorage TAL CUAL como lo hacés en PauseScene
+    const usuarioIdRaw = localStorage.getItem("usuario_id");
+    const usuarioId = usuarioIdRaw ? parseInt(usuarioIdRaw, 10) : null;
 
     let fondoOscuro = this.add.graphics();
     fondoOscuro.fillStyle(0x000000, 0.8);
@@ -66,24 +66,26 @@ export default class GameOver extends Phaser.Scene {
 
     // --- INTERACTIVIDAD: RESTART ---
     btnRestart.on("pointerdown", async () => {
-      // 1. Bloqueamos el botón sutilmente para evitar doble clics molestos mientras responde la API
       btnRestart.disableInteractive();
 
-      // 2. Reseteamos los valores en tu Backend enviando los datos iniciales de reinicio
-      await authService.guardarPartida(
-        this.usuarioId, // usuario_id
-        "Level1",       // nivel_actual
-        3,              // vidas
-        0,              // huesos_recolectados
-        0,              // puntos_a_acumular
-        0               // tiempo_a_acumular
-      );
-
-      // 3. Seteamos también el estado actual en la memoria local de Phaser (Registry)
+      // 1. Seteamos el estado a cero en la memoria local de Phaser (Registry)
       this.registry.set("vidas", 3);
       this.registry.set("huesos", 0);
+      this.registry.set("puntos", 0);
 
-      // 4. Mandamos al jugador al inicio
+      // 2. Mandamos al backend usando el endpoint de cierre de aventura
+      if (usuarioId) {
+        try {
+          // Usamos registrarScoreFinal. Le pasamos 0 y 0 porque en este nivel final (donde murió) 
+          // no sumó puntos ni tiempo extra que queramos agregar al score histórico.
+          const respuesta = await authService.registrarScoreFinal(usuarioId, 0, 0);
+          console.log("Respuesta de ranking y reseteo (Restart):", respuesta);
+        } catch (err) {
+          console.error("Error al registrar score en GameOver (Restart):", err);
+        }
+      }
+
+      // 3. Mandamos al jugador al inicio fresco
       this.scene.start("Level1"); 
     });
 
@@ -94,11 +96,18 @@ export default class GameOver extends Phaser.Scene {
     btnExit.on("pointerdown", async () => {
       btnExit.disableInteractive();
 
-      // Al salir también reseteamos la base de datos para que la próxima vez no retome en nivel 3
-      await authService.guardarPartida(this.usuarioId, "Level1", 3, 0, 0, 0);
-      
       this.registry.set("vidas", 3);
       this.registry.set("huesos", 0);
+      this.registry.set("puntos", 0);
+
+      // Sincronizamos el cierre y reseteo con el backend antes de ir al menú
+      if (usuarioId) {
+        try {
+          await authService.registrarScoreFinal(usuarioId, 0, 0);
+        } catch (err) {
+          console.error("Error al registrar score en GameOver (Exit):", err);
+        }
+      }
 
       // Volvemos al menú principal
       this.scene.start("MenuScene");
@@ -107,8 +116,28 @@ export default class GameOver extends Phaser.Scene {
     btnExit.on("pointerover", () => btnExit.setTint(0xff3333));
     btnExit.on("pointerout", () => btnExit.clearTint());
 
-    this.scale.on("resize", () => {
-      this.scene.restart();
+    // --- RESIZE ---
+    // Usamos un resizeHandler estructurado igual al tuyo para evitar dolores de cabeza
+    this.resizeHandler = (gameSize) => {
+      const w = gameSize.width;
+      const h = gameSize.height;
+      const bScale = h / 768;
+      const esp = 120 * bScale;
+      const posY = h * 0.70;
+
+      fondoOscuro.clear();
+      fondoOscuro.fillStyle(0x000000, 0.8);
+      fondoOscuro.fillRect(0, 0, w, h);
+
+      imgGameOver.setPosition(w / 2, h * 0.28).setScale(0.35 * bScale);
+      txtMensaje.setPosition(w / 2, h * 0.52).setFontSize(`${Math.floor(22 * bScale)}px`);
+      btnRestart.setPosition(w / 2 - esp, posY).setScale(0.45 * bScale);
+      btnExit.setPosition(w / 2 + esp, posY).setScale(0.45 * bScale);
+    };
+
+    this.scale.on("resize", this.resizeHandler);
+    this.events.on("shutdown", () => {
+      this.scale.off("resize", this.resizeHandler);
     });
   }
 }
