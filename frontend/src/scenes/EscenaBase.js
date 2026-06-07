@@ -398,6 +398,12 @@ export default class EscenaBase extends Phaser.Scene {
         case "paloma":
           this.sound.play("paloma_sound", { volume: 0.3 });
           break;
+        case "auto":
+          this.sound.play("auto_sound", { volume: 0.1 });
+          break;
+        case "avion":
+          this.sound.play("avion_sound", { volume: 0.5 });
+          break;
         default:
           // Por si te olvidás de alguno en el futuro
           this.sound.play("gato_daño", { volume: 0.1 });
