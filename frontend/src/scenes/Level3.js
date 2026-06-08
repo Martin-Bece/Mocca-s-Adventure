@@ -63,16 +63,20 @@ export default class Level3 extends EscenaBase {
 
     // --- ASSETS EXCLUSIVOS PARA LA CINEMÁTICA FINAL ---
     this.load.spritesheet("Eagle_fly", "./Assets/Eagle_fly.png", {
-      frameWidth: 64, // Ajustá el tamaño si tu spritesheet de águila usa otra medida
-      frameHeight: 64,
+      frameWidth: 32, 
+      frameHeight: 32,
     });
-    this.load.image("mocca_ball", "./Assets/mocca_ball.png"); 
+    this.load.spritesheet("Eagle_idle", "./Assets/Eagle_idle.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.image("mocca_ball", "./Assets/Mocca_ball.png");
   }
 
   create() {
     const { width, height } = this.scale;
 
-    // Inicialización del HUD, música de fondo y cursores del core
+    // Inicialización del HUD, música de fondo y cursors
     this.crearBaseComun("level_3");
 
     // --- FONDO PARALLAX NIVEL 3 ---
@@ -110,16 +114,11 @@ export default class Level3 extends EscenaBase {
     if (!this.anims.exists("huesito_rotate")) {
       this.anims.create({
         key: "huesito_rotate",
-        frames: this.anims.generateFrameNumbers("huesito", {
-          start: 0,
-          end: 4,
-        }),
+        frames: this.anims.generateFrameNumbers("huesito", { start: 0, end: 4 }),
         frameRate: 7,
         repeat: -1,
       });
     }
-
-    // Animaciones de Mocca validadas una por una
     if (!this.anims.exists("idle")) {
       this.anims.create({
         key: "idle",
@@ -131,10 +130,7 @@ export default class Level3 extends EscenaBase {
     if (!this.anims.exists("run")) {
       this.anims.create({
         key: "run",
-        frames: this.anims.generateFrameNumbers("mocca_run", {
-          start: 0,
-          end: 2,
-        }),
+        frames: this.anims.generateFrameNumbers("mocca_run", { start: 0, end: 2 }),
         frameRate: 7,
         repeat: -1,
       });
@@ -142,10 +138,7 @@ export default class Level3 extends EscenaBase {
     if (!this.anims.exists("jump")) {
       this.anims.create({
         key: "jump",
-        frames: this.anims.generateFrameNumbers("mocca_jump", {
-          start: 0,
-          end: 3,
-        }),
+        frames: this.anims.generateFrameNumbers("mocca_jump", { start: 0, end: 3 }),
         frameRate: 2,
         repeat: 0,
       });
@@ -153,10 +146,7 @@ export default class Level3 extends EscenaBase {
     if (!this.anims.exists("bark_idle")) {
       this.anims.create({
         key: "bark_idle",
-        frames: this.anims.generateFrameNumbers("mocca_bark", {
-          start: 0,
-          end: 0,
-        }),
+        frames: this.anims.generateFrameNumbers("mocca_bark", { start: 0, end: 0 }),
         frameRate: 1,
         repeat: 0,
       });
@@ -164,10 +154,7 @@ export default class Level3 extends EscenaBase {
     if (!this.anims.exists("bark_run")) {
       this.anims.create({
         key: "bark_run",
-        frames: this.anims.generateFrameNumbers("mocca_bark", {
-          start: 1,
-          end: 1,
-        }),
+        frames: this.anims.generateFrameNumbers("mocca_bark", { start: 1, end: 1 }),
         frameRate: 1,
         repeat: 0,
       });
@@ -175,21 +162,24 @@ export default class Level3 extends EscenaBase {
     if (!this.anims.exists("bark_jump")) {
       this.anims.create({
         key: "bark_jump",
-        frames: this.anims.generateFrameNumbers("mocca_bark", {
-          start: 2,
-          end: 2,
-        }),
+        frames: this.anims.generateFrameNumbers("mocca_bark", { start: 2, end: 2 }),
         frameRate: 1,
         repeat: 0,
       });
     }
-
-    // Animación del Águila para la cinemática
     if (!this.anims.exists("eagle_fly")) {
       this.anims.create({
         key: "eagle_fly",
-        frames: this.anims.generateFrameNumbers("Eagle_fly", { start: 0, end: 2 }), // Ajustalo según tus frames
-        frameRate: 6,
+        frames: this.anims.generateFrameNumbers("Eagle_fly", { start: 0, end: 2 }),
+        frameRate: 7,
+        repeat: -1,
+      });
+    }
+    if (!this.anims.exists("eagle_idle")) {
+      this.anims.create({
+        key: "eagle_idle",
+        frames: this.anims.generateFrameNumbers("Eagle_idle", { start: 0, end: 2 }),
+        frameRate: 7,
         repeat: -1,
       });
     }
@@ -222,11 +212,9 @@ export default class Level3 extends EscenaBase {
       { x: 9600, y: height - 140, tipo: "mediana" },
     ];
 
-    // --- PROCESAMIENTO GENERATIVO DE PLATAFORMAS ---
     diseñoNivel3.forEach((plat) => {
       let keyAsset = "plat_" + plat.tipo;
       let plataformaInstancia = this.platforms.create(plat.x, plat.y, keyAsset);
-
       plataformaInstancia.refreshBody();
 
       plataformaInstancia.body.checkCollision.down = false;
@@ -236,40 +224,24 @@ export default class Level3 extends EscenaBase {
       if (plat.tipo === "corta") {
         plataformaInstancia.body.setSize(100, 1);
         plataformaInstancia.body.setOffset(1, 10);
-
-        bones
-          .create(plat.x, plat.y - 40, "huesito")
-          .body.setAllowGravity(false);
+        bones.create(plat.x, plat.y - 40, "huesito").body.setAllowGravity(false);
       } else if (plat.tipo === "mediana") {
         plataformaInstancia.body.setSize(170, 1);
         plataformaInstancia.body.setOffset(10, 14);
-
-        bones
-          .create(plat.x - 35, plat.y - 45, "huesito")
-          .body.setAllowGravity(false);
-        bones
-          .create(plat.x + 35, plat.y - 45, "huesito")
-          .body.setAllowGravity(false);
+        bones.create(plat.x - 35, plat.y - 45, "huesito").body.setAllowGravity(false);
+        bones.create(plat.x + 35, plat.y - 45, "huesito").body.setAllowGravity(false);
       } else if (plat.tipo === "larga") {
         plataformaInstancia.body.setSize(330, 1);
         plataformaInstancia.body.setOffset(10, 14);
 
-        bones
-          .create(plat.x - 80, plat.y - 45, "huesito")
-          .body.setAllowGravity(false);
-        bones
-          .create(plat.x, plat.y - 65, "huesito")
-          .body.setAllowGravity(false);
-        bones
-          .create(plat.x + 80, plat.y - 45, "huesito")
-          .body.setAllowGravity(false);
+        bones.create(plat.x - 80, plat.y - 45, "huesito").body.setAllowGravity(false);
+        bones.create(plat.x, plat.y - 65, "huesito").body.setAllowGravity(false);
+        bones.create(plat.x + 80, plat.y - 45, "huesito").body.setAllowGravity(false);
 
-        // --- AUTO EN PLATAFORMA LARGA ---
         let autoEnemigo = this.enemigos.create(plat.x, plat.y - 50, "auto");
         autoEnemigo.setScale(0.18);
         autoEnemigo.body.setSize(270, 150);
         autoEnemigo.body.setOffset(45, 120);
-
         autoEnemigo.speed = 90;
         autoEnemigo.distaciaPatrulla = 120;
         autoEnemigo.puntoInicialX = plat.x;
@@ -280,13 +252,12 @@ export default class Level3 extends EscenaBase {
     });
 
     // --- ENEMIGOS TERRESTRES EN EL SUELO ---
-    for (let posX = 700; posX < 10000; posX += 550) {
+    for (let posX = 700; posX < 9400; posX += 550) {
       let autoSuelo = this.enemigos.create(posX, height - 110, "auto");
       autoSuelo.setScale(0.2);
       autoSuelo.body.setSize(270, 140);
       autoSuelo.body.setOffset(45, 120);
       autoSuelo.setCollideWorldBounds(true);
-
       autoSuelo.speed = 130;
       autoSuelo.distaciaPatrulla = 180;
       autoSuelo.puntoInicialX = posX;
@@ -297,19 +268,17 @@ export default class Level3 extends EscenaBase {
 
     // --- ENEMIGOS AÉREOS ---
     let alternarAlturaAvion = 0;
-    for (let posX = 900; posX < 10000; posX += 650) {
+    for (let posX = 900; posX < 9400; posX += 650) {
       let alturaAvion = height - 300;
       if (alternarAlturaAvion === 1) alturaAvion = height - 380;
       alternarAlturaAvion = (alternarAlturaAvion + 1) % 2;
 
       let avion = this.enemigos.create(posX, alturaAvion, "avion");
       avion.setScale(2.2);
-
       avion.body.setSize(27, 12);
       avion.body.setOffset(19, 25);
       avion.body.setAllowGravity(false);
       avion.setCollideWorldBounds(true);
-
       avion.speed = 100;
       avion.distaciaPatrulla = 200;
       avion.puntoInicialX = posX;
@@ -331,18 +300,30 @@ export default class Level3 extends EscenaBase {
     this.cameras.main.startFollow(this.mocca, true, 0.05, 0.05);
     this.cameras.main.setBounds(0, 0, this.longitudNivel, height);
 
+    // ============================================================================
+    // 🌟 SE CORRIGE LA RE-POSICIÓN DEL ÁGUILA (1000px más lejos del final estructural)
+    // ============================================================================
+    // Última plataforma en 9600px + 1000px de margen seguro = Disparador en 10600px
+    this.posicionCinematica = 10600;
+
+    // El águila espera pacientemente en el suelo 200px por delante del inicio de la cinemática
+    this.eagle = this.add
+      .sprite(this.posicionCinematica + 200, height - 85, "Eagle_idle")
+      .setScale(3)
+      .setOrigin(0.5, 0.5);
+    this.eagle.play("eagle_idle");
+
+    // Pelota custodiada al lado de ella
+    this.ball = this.add
+      .image(this.eagle.x - 30, this.eagle.y + 20, "mocca_ball")
+      .setScale(1.5);
+
     // --- CONFIGURACIÓN DE COLISIONES ---
     this.physics.add.collider(this.mocca, this.ground2);
     this.physics.add.collider(this.enemigos, this.ground2);
     this.physics.add.collider(this.enemigos, this.platforms);
     this.physics.add.overlap(this.mocca, bones, this.collectBone, null, this);
-    this.physics.add.overlap(
-      this.mocca,
-      this.enemigos,
-      this.hitEnemigo,
-      null,
-      this,
-    );
+    this.physics.add.overlap(this.mocca, this.enemigos, this.hitEnemigo, null, this);
 
     this.physics.add.collider(
       this.mocca,
@@ -379,11 +360,7 @@ export default class Level3 extends EscenaBase {
     const espacioEntreBotones = 65 * factorUI;
 
     this.btnSonido = this.add
-      .image(
-        width - margenDerecho,
-        margenSuperior,
-        audioManager.isMuted(this) ? "Mute" : "Unmute",
-      )
+      .image(width - margenDerecho, margenSuperior, audioManager.isMuted(this) ? "Mute" : "Unmute")
       .setOrigin(0.5)
       .setScale(escalaBotonesUI)
       .setInteractive({ useHandCursor: true })
@@ -432,9 +409,7 @@ export default class Level3 extends EscenaBase {
         this.fondoParallax.tileScaleY = fEscala;
       }
       this.btnSonido.setPosition(w - mDerecho, mSuperior).setScale(eBotones);
-      this.btnPausa
-        .setPosition(this.btnSonido.x - eEntre, mSuperior)
-        .setScale(eBotones);
+      this.btnPausa.setPosition(this.btnSonido.x - eEntre, mSuperior).setScale(eBotones);
     };
 
     this.scale.on("resize", this.levelResizeHandler);
@@ -443,15 +418,13 @@ export default class Level3 extends EscenaBase {
     });
   }
 
-  // --- COMPORTAMIENTO DE MOVIMIENTO / PATRULLA EN TIEMPO REAL ---
   update(time, delta) {
-    // 🌟 1. LLAMAMOS AL UPDATE DE ESCENABASE
+    // El update base detectará de forma nativa cuando Mocca alcance los 10600 píxeles
     super.update(time, delta);
 
-    // 🛑 CLÁUSULA DE GUARDA: Si el nivel ya se completó, frenamos el código acá
-    if (this.nivelCompletado) return;
+    if (this.nivelCompletado || this.cinematicaIniciada || this.isPaused) return;
 
-    // 🌟 2. PATRULLAJE EXCLUSIVO CON GIRO ADAPTADO PARA ESTE NIVEL
+    // Patrullaje de enemigos del Nivel 3
     if (this.enemigos) {
       this.enemigos.children.iterate((enemigo) => {
         if (enemigo && enemigo.active && enemigo.body) {
@@ -460,32 +433,17 @@ export default class Level3 extends EscenaBase {
           let diffX = Math.abs(enemigo.x - enemigo.puntoInicialX);
 
           if (diffX >= enemigo.distaciaPatrulla) {
-            if (
-              enemigo.x > enemigo.puntoInicialX &&
-              enemigo.body.velocity.x > 0
-            ) {
+            if (enemigo.x > enemigo.puntoInicialX && enemigo.body.velocity.x > 0) {
               enemigo.setVelocityX(-enemigo.speed);
-            } else if (
-              enemigo.x < enemigo.puntoInicialX &&
-              enemigo.body.velocity.x < 0
-            ) {
+            } else if (enemigo.x < enemigo.puntoInicialX && enemigo.body.velocity.x < 0) {
               enemigo.setVelocityX(enemigo.speed);
             }
           }
 
-          // --- ORIENTACIÓN CORRECTA DE SPRITES EN NIVEL 3 ---
           if (enemigo.texture.key === "avion") {
-            if (enemigo.body.velocity.x > 0) {
-              enemigo.setFlipX(false); // Avanza a la derecha, se des-espeja
-            } else if (enemigo.body.velocity.x < 0) {
-              enemigo.setFlipX(true);  // Avanza a la izquierda, se espeja
-            }
+            enemigo.setFlipX(enemigo.body.velocity.x < 0);
           } else {
-            if (enemigo.body.velocity.x > 0) {
-              enemigo.setFlipX(true);  // Autos mirando a la derecha
-            } else if (enemigo.body.velocity.x < 0) {
-              enemigo.setFlipX(false); // Autos mirando a la izquierda
-            }
+            enemigo.setFlipX(enemigo.body.velocity.x > 0);
           }
         }
       });
@@ -493,145 +451,208 @@ export default class Level3 extends EscenaBase {
   }
 
   // ============================================================================
-  // --- SOBREESCRITURA DE LA CINEMÁTICA FINAL DE JUEGO (EL DESENLACE) ---
+  // --- CONTROL DE LA CINEMÁTICA FINAL (WWE + CAÍDA DE PELOTA CORREGIDA) ---
   // ============================================================================
   iniciarCinematicaFinal() {
-    // Evitamos ejecuciones repetidas
-    if (this.nivelCompletado) return;
-    
     const { width, height } = this.scale;
 
-    // Frenamos las físicas de todo el nivel
+    // Frenamos las físicas de juego generales y ocultamos el HUD
     this.physics.pause();
-
-    // 1. Reajustamos la cámara fijándola en el final del mapa para el clímax
-    this.cameras.main.stopFollow();
-    this.cameras.main.pan(this.posicionCinematica + 300, height / 2, 1000, "Power2", true);
-
-    // Ocultamos los botones del HUD para que la cinemática quede limpia en pantalla limpia
     if (this.btnSonido) this.btnSonido.setVisible(false);
     if (this.btnPausa) this.btnPausa.setVisible(false);
 
-    // 2. Colocamos los actores de la cinemática usando coordenadas del mundo real (fin del nivel)
-    const baseCamaraX = this.posicionCinematica;
+    // Mocca se planta firme esperando el careo con el ave
+    if (this.mocca && this.mocca.active) {
+      this.mocca.setVelocity(0);
+      this.mocca.anims.play("idle", true);
+    }
 
-    // Forzamos a nuestra Mocca jugable a quedarse quieta corriendo
-    this.mocca.setVelocity(0, 0);
-    this.mocca.setFlipX(false);
-    this.mocca.anims.play("run", true);
+    // Centramos con suavidad la cámara en la zona del clímax
+    this.cameras.main.stopFollow();
+    this.cameras.main.pan(this.eagle.x - 220, height / 2, 1000, "Power2", true);
 
-    // Instanciamos al águila ladrona escapando cansada y a la pelota flotando cerca
-    let eagleCinematica = this.add.sprite(baseCamaraX + 650, height - 300, "Eagle_fly").setScale(2.5).setFlipX(true);
-    let ballCinematica = this.add.image(eagleCinematica.x, eagleCinematica.y + 20, "mocca_ball").setScale(1.2);
-    eagleCinematica.anims.play("eagle_fly", true);
+    // --- PASO 1: Suspenso dramático inicial (1.5 segundos) ---
+    this.time.delayedCall(1500, () => {
+      // Signo de exclamación sobre el águila
+      let signExclamation = this.add
+        .text(this.eagle.x, this.eagle.y - 50, "!", {
+          fontFamily: "Courier New, Arial",
+          fontSize: "42px",
+          fill: "#ff0000",
+          fontStyle: "bold",
+          stroke: "#000000",
+          strokeThickness: 5,
+        })
+        .setOrigin(0.5)
+        .setScale(0);
 
-    // --- CADENA DE EFECTOS / SECUENCIA DE TWEENS ---
+      this.tweens.add({
+        targets: signExclamation,
+        scale: 1.2,
+        duration: 200,
+        ease: "Back.easeOut",
+        yoyo: true,
+        hold: 800,
+        onComplete: () => {
+          signExclamation.destroy(); 
 
-    // Paso A: Mocca avanza en posición de carrera fija hacia el centro del encuadre
-    this.tweens.add({
-      targets: this.mocca,
-      x: baseCamaraX + 250,
-      duration: 1500,
-      ease: "Linear",
-      onComplete: () => {
-        // Paso B: Llegó al punto justo... ¡Mocca mete salto olímpico a lo WWE! 🐾💥
-        this.mocca.anims.play("jump", true);
-        if (this.sound.get("mocca_jump")) this.sound.play("mocca_jump", { volume: 0.4 });
+          // --- PASO 2: El águila se da vuelta y arranca el vuelo ---
+          this.eagle.setFlipX(true);
+          this.eagle.play("eagle_fly");
+          this.ball.setPosition(this.eagle.x, this.eagle.y + 20);
 
-        this.tweens.add({
-          targets: this.mocca,
-          x: eagleCinematica.x,
-          y: eagleCinematica.y - 25, // Se clava directo arriba del lomo del águila
-          duration: 900,
-          ease: "Quad.easeOut",
-          onComplete: () => {
-            // ¡PUM! IMPACTO TOTAL CONTRA EL JEFE INVOLUNTARIO 💥🦅
-            if (this.sound.get("avion_sound")) this.sound.play("avion_sound", { volume: 0.6 }); // Efecto destructivo
-
-            // La pelotita se suelta y sale disparada hacia arriba haciendo una campana
-            this.tweens.add({
-              targets: ballCinematica,
-              x: eagleCinematica.x + 60,
-              y: eagleCinematica.y - 140,
-              duration: 450,
-              yoyo: true, // Cae por fuerza de gravedad simulada
-              ease: "Quad.easeInOut"
-            });
-
-            // El águila queda fulminada en espiral cómica y cae al vacío fuera de la pantalla
-            this.tweens.add({
-              targets: eagleCinematica,
-              y: height + 150,
-              angle: 180, // Queda patas para arriba
-              x: eagleCinematica.x + 120,
-              duration: 1200,
-              ease: "Quad.easeIn",
-              onComplete: () => { eagleCinematica.destroy(); }
-            });
-
-            // Mocca desciende triunfante directo hacia el suelo
-            this.tweens.add({
-              targets: this.mocca,
-              x: eagleCinematica.x + 60,
-              y: height - 100, // Cae firme sobre sus patas
-              duration: 450,
-              ease: "Quad.easeIn",
-              onComplete: () => {
-                // Paso C: ¡Festejo definitivo con su juguete recuperado!
-                this.mocca.anims.play("idle", true);
-                ballCinematica.setPosition(this.mocca.x + 15, this.mocca.y + 5); // Le encaja perfecto en el hocico
-
-                if (this.sound.get("comer_hueso")) this.sound.play("comer_hueso", { volume: 0.5 }); // Sonido satisfactorio
-
-                // Lanzamos cartelería final épica directo sobre el centro fijo de la pantalla de juego
-                let txtVictoria = this.add.text(this.cameras.main.centerX, height / 2 - 50, "¡PELOTA RECUPERADA!", {
-                  fontFamily: "Courier New, Arial, sans-serif",
-                  fontSize: "52px",
-                  fill: "#ffff00",
-                  fontStyle: "bold",
-                  stroke: "#000000",
-                  strokeThickness: 8
-                }).setOrigin(0.5).setScrollFactor(0);
-
-                let txtCreditos = this.add.text(this.cameras.main.centerX, height / 2 + 40, "¡Mocca salvó el día!\nGracias por jugar.", {
-                  fontFamily: "Arial",
-                  fontSize: "26px",
-                  fill: "#ffffff",
-                  align: "center",
-                  stroke: "#000000",
-                  strokeThickness: 5
-                }).setOrigin(0.5).setScrollFactor(0);
-
-                // Pequeño escalado dinámico para que el texto principal golpee con onda
-                txtVictoria.setScale(0);
-                this.tweens.add({
-                  targets: txtVictoria,
-                  scaleX: 1,
-                  scaleY: 1,
-                  duration: 500,
-                  ease: "Back.easeOut"
-                });
-
-                // Esperamos 4 segundos para que disfrute el final y cerramos llamando al core del motor
-                this.time.delayedCall(4000, () => {
-                  this.nivelCompletado = true;
-                  
-                  let tiempoTotalMs = this.time.now - this.tiempoInicio;
-                  let segundosTotales = Math.floor(tiempoTotalMs / 1000);
-
-                  this.scene.launch("WinScene", {
-                    escenaOrigen: this.scene.key,
-                    puntos: this.registry.get("puntos"),
-                    vidas: this.registry.get("vidas"),
-                    tiempo: segundosTotales,
-                  });
-                  this.scene.pause();
-                });
+          // Vuelo de huida controlado
+          let huidaEagle = this.tweens.add({
+            targets: this.eagle,
+            x: this.eagle.x + 450,
+            y: this.eagle.y - 240,
+            duration: 4000,
+            ease: "Quad.easeOut",
+            onUpdate: () => {
+              if (this.ball && this.ball.active) {
+                this.ball.x = this.eagle.x;
+                this.ball.y = this.eagle.y + 20;
               }
-            });
-          }
-        });
-      }
+            },
+          });
+
+          // --- PASO 3: Mocca se activa y corre a máxima velocidad ---
+          this.time.delayedCall(500, () => {
+            if (this.mocca && this.mocca.active) {
+              this.mocca.anims.play("run", true);
+
+              this.tweens.add({
+                targets: this.mocca,
+                x: this.eagle.x - 120, 
+                duration: 1100,
+                ease: "Linear",
+                onComplete: () => {
+                  // --- PASO 4: ¡EL REMATE ESTILO WWE! 🐾💥 ---
+                  this.mocca.anims.play("jump", true);
+                  if (this.sound.get("mocca_jump")) {
+                    this.sound.play("mocca_jump", { volume: 0.4 });
+                  }
+
+                  this.tweens.add({
+                    targets: this.mocca,
+                    x: this.eagle.x,
+                    y: this.eagle.y - 45, 
+                    duration: 550,
+                    ease: "Quad.easeOut",
+                    onComplete: () => {
+                      huidaEagle.stop();
+
+                      if (this.sound.get("avion_sound")) {
+                        this.sound.play("avion_sound", { volume: 0.7 });
+                      }
+
+                      // 🌟 CORRECCIÓN AQUÍ: Rebote hacia arriba Y LUEGO caída libre por gravedad al suelo
+                      this.tweens.add({
+                        targets: this.ball,
+                        x: this.eagle.x + 30,
+                        y: this.eagle.y - 70, // Rebote inicial por el impacto
+                        duration: 350,
+                        ease: "Quad.easeOut",
+                        onComplete: () => {
+                          // Segundo Tween encadenado: Cae de vuelta al suelo junto a Mocca
+                          this.tweens.add({
+                            targets: this.ball,
+                            y: height - 65, // Coordenada exacta del suelo firme
+                            duration: 450,
+                            ease: "Bounce.easeOut" // Efecto de rebote tierno contra el piso
+                          });
+                        }
+                      });
+
+                      // El águila cae fulminada fuera de pantalla
+                      this.tweens.add({
+                        targets: this.eagle,
+                        y: height + 150,
+                        angle: 180,
+                        x: this.eagle.x + 50,
+                        duration: 1000,
+                        ease: "Quad.easeIn",
+                        onComplete: () => {
+                          this.eagle.destroy();
+                        },
+                      });
+
+                      // Mocca aterriza triunfante
+                      this.tweens.add({
+                        targets: this.mocca,
+                        y: height - 100, 
+                        duration: 400,
+                        ease: "Quad.easeIn",
+                        onComplete: () => {
+                          // --- PASO 5: Festejo y Cartelería final ---
+                          this.mocca.anims.play("idle", true);
+
+                          if (this.sound.get("comer_hueso")) {
+                            this.sound.play("comer_hueso", { volume: 0.6 });
+                          }
+
+                          let txtVictoria = this.add
+                            .text(width / 2, height / 2 - 50, "¡PELOTA RECUPERADA!", {
+                              fontFamily: "Courier New, Arial, sans-serif",
+                              fontSize: "52px",
+                              fill: "#ffff00",
+                              fontStyle: "bold",
+                              stroke: "#000000",
+                              strokeThickness: 8,
+                            })
+                            .setOrigin(0.5)
+                            .setScrollFactor(0)
+                            .setScale(0);
+
+                          let txtCreditos = this.add
+                            .text(width / 2, height / 2 + 40, "¡Mocca salvó el día y completó el juego!\nGracias por jugar.", {
+                              fontFamily: "Arial",
+                              fontSize: "26px",
+                              fill: "#ffffff",
+                              align: "center",
+                              stroke: "#000000",
+                              strokeThickness: 5,
+                            })
+                            .setOrigin(0.5)
+                            .setScrollFactor(0);
+
+                          this.tweens.add({
+                            targets: txtVictoria,
+                            scaleX: 1,
+                            scaleY: 1,
+                            duration: 500,
+                            ease: "Back.easeOut",
+                          });
+
+                          // --- PASO 6: Cierre definitivo lanzando la WinScene al frente ---
+                          this.time.delayedCall(4000, () => {
+                            this.nivelCompletado = true;
+
+                            let tiempoTotalMs = this.time.now - this.tiempoInicio;
+                            let segundosTotales = Math.floor(tiempoTotalMs / 1000);
+
+                            this.scene.pause("Level3");
+                            
+                            this.scene.launch("WinScene", {
+                              escenaOrigen: "Level3",
+                              puntos: this.registry.get("puntos") || 0,
+                              vidas: this.registry.get("vidas") || 3,
+                              tiempo: segundosTotales,
+                            });
+                            
+                            // Asegura el renderizado en la capa superior
+                            this.scene.bringToTop("WinScene");
+                          });
+                        },
+                      });
+                    },
+                  });
+                },
+              });
+            }
+          });
+        },
+      });
     });
   }
 }
