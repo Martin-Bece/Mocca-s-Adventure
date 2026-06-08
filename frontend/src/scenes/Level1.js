@@ -49,6 +49,17 @@ export default class Level1 extends EscenaBase {
     this.load.image("Mute", "./Assets/Botones/Mute.png");
     this.load.image("Unmute", "./Assets/Botones/Unmute.png");
     this.load.image("Pause", "./Assets/Botones/Resume.png");
+
+    //Parte de carga de Cinematica
+    this.load.spritesheet("Eagle_fly", "./Assets/Eagle_fly.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet("Eagle_idle", "./Assets/Eagle_idle.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.image("mocca_ball", "./Assets/Mocca_ball.png");
   }
 
   create() {
@@ -168,6 +179,28 @@ export default class Level1 extends EscenaBase {
         }),
         frameRate: 1,
         repeat: 0,
+      });
+    }
+    if (!this.anims.exists("eagle_fly")) {
+      this.anims.create({
+        key: "eagle_fly",
+        frames: this.anims.generateFrameNumbers("Eagle_fly", {
+          start: 0,
+          end: 2,
+        }),
+        frameRate: 7,
+        repeat: -1,
+      });
+    }
+    if (!this.anims.exists("eagle_idle")) {
+      this.anims.create({
+        key: "eagle_idle",
+        frames: this.anims.generateFrameNumbers("Eagle_idle", {
+          start: 0,
+          end: 2,
+        }),
+        frameRate: 7,
+        repeat: -1,
       });
     }
 
@@ -307,7 +340,7 @@ export default class Level1 extends EscenaBase {
     this.btnSonido = this.add
       .image(
         width - margenDerecho,
-        margenSuperior, 
+        margenSuperior,
         audioManager.isMuted(this) ? "Mute" : "Unmute",
       )
       .setOrigin(0.5)
@@ -358,6 +391,53 @@ export default class Level1 extends EscenaBase {
       this.btnPausa
         .setPosition(this.btnSonido.x - eEntre, mSuperior)
         .setScale(eBotones);
+    });
+  }
+
+  iniciarCinematicaFinal() {
+    let eagle = this.physics.add
+      .sprite(this.mocca.x + 300, this.mocca.y - 150, "Eagle_fly")
+      .setScale(3);
+
+    eagle.body.allowGravity = false;
+
+    eagle.play("eagle_fly");
+
+    this.tweens.add({
+      targets: eagle,
+      x: this.mocca.x + 60,
+      y: this.mocca.y - 40,
+      duration: 2500,
+      ease: "Sine.easeInOut",
+
+      onComplete: () => {
+        this.capturarMocca(eagle);
+      },
+    });
+  }
+
+  capturarMocca(eagle) {
+    this.mocca.setVisible(false);
+
+    let ball = this.add
+      .image(eagle.x, eagle.y + 40, "mocca_ball")
+      .setScale(1.5);
+
+    this.tweens.add({
+      targets: [eagle, ball],
+      y: "-=500",
+      x: "+=400",
+      duration: 4000,
+      ease: "Sine.easeIn",
+
+      onUpdate: () => {
+        ball.x = eagle.x;
+        ball.y = eagle.y + 40;
+      },
+
+      onComplete: () => {
+        this.finalizarNivel();
+      },
     });
   }
 }

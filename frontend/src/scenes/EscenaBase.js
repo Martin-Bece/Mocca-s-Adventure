@@ -57,6 +57,8 @@ export default class EscenaBase extends Phaser.Scene {
 
     this.tiempoInicio = this.time.now;
     this.nivelCompletado = false;
+    this.cinematicaIniciada = false;
+    this.posicionCinematica = this.longitudNivel - 800;
   }
 
   crearHUD() {
@@ -144,25 +146,20 @@ export default class EscenaBase extends Phaser.Scene {
     }
 
     // --- PANTALLA DE VICTORIA ---
-    if (this.mocca && this.mocca.active && !this.nivelCompletado) {
-      if (this.mocca.x >= this.longitudNivel - 100) {
-        this.nivelCompletado = true;
+    // --- ACTIVAR CINEMÁTICA FINAL ---
+    if (
+      this.mocca &&
+      this.mocca.active &&
+      !this.cinematicaIniciada &&
+      !this.nivelCompletado
+    ) {
+      if (this.mocca.x >= this.posicionCinematica) {
+        this.cinematicaIniciada = true;
 
-        let tiempoTotalMs = this.time.now - this.tiempoInicio;
-        let segundosTotales = Math.floor(tiempoTotalMs / 1000);
+        this.mocca.setVelocity(0);
+        this.isPaused = true;
 
-        this.physics.pause();
-        this.mocca.anims.play("idle", true);
-        this.mocca.setVelocity(0, 0);
-
-        this.scene.launch("WinScene", {
-          escenaOrigen: this.scene.key,
-          puntos: this.registry.get("puntos"),
-          vidas: this.registry.get("vidas"),
-          tiempo: segundosTotales,
-        });
-
-        this.scene.pause();
+        this.iniciarCinematicaFinal();
       }
     }
   }
@@ -430,5 +427,35 @@ export default class EscenaBase extends Phaser.Scene {
     this.time.delayedCall(500, () => {
       this.scene.start("PerderVida", { currentScene: this.scene.key });
     });
+  }
+
+  iniciarCinematicaFinal() {
+    // Se sobrescribe en cada nivel
+    this.finalizarNivel();
+  }
+
+  finalizarNivel() {
+    if (this.nivelCompletado) return;
+
+    this.nivelCompletado = true;
+
+    let tiempoTotalMs = this.time.now - this.tiempoInicio;
+    let segundosTotales = Math.floor(tiempoTotalMs / 1000);
+
+    this.physics.pause();
+
+    if (this.mocca) {
+      this.mocca.setVelocity(0, 0);
+      this.mocca.anims.play("idle", true);
+    }
+
+    this.scene.launch("WinScene", {
+      escenaOrigen: this.scene.key,
+      puntos: this.registry.get("puntos"),
+      vidas: this.registry.get("vidas"),
+      tiempo: segundosTotales,
+    });
+
+    this.scene.pause();
   }
 }
