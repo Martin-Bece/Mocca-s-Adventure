@@ -12,7 +12,7 @@ export default class GameOver extends Phaser.Scene {
   preload() {
     this.load.image("gameover_img", "./Assets/gameover_img.png");
     this.load.image("Restart", "./Assets/Botones/Restart.png"); // Corregida la ruta para usar tu carpeta Botones
-    this.load.image("Exit", "./Assets/Botones/Exit.png");       // Corregida la ruta para usar tu carpeta Botones
+    this.load.image("Exit", "./Assets/Botones/Exit.png"); // Corregida la ruta para usar tu carpeta Botones
   }
 
   create() {
@@ -43,12 +43,12 @@ export default class GameOver extends Phaser.Scene {
           fill: "#ffffff",
           align: "center",
           wordWrap: { width: width * 0.75 },
-        }
+        },
       )
       .setOrigin(0.5);
 
-    const espacioEntreBotones = 120 * baseScale; 
-    const posicionYBotones = height * 0.70;
+    const espacioEntreBotones = 120 * baseScale;
+    const posicionYBotones = height * 0.7;
 
     // Botón Volver a Jugar (Restart)
     let btnRestart = this.add
@@ -76,17 +76,25 @@ export default class GameOver extends Phaser.Scene {
       // 2. Mandamos al backend usando el endpoint de cierre de aventura
       if (usuarioId) {
         try {
-          // Usamos registrarScoreFinal. Le pasamos 0 y 0 porque en este nivel final (donde murió) 
+          // Usamos registrarScoreFinal. Le pasamos 0 y 0 porque en este nivel final (donde murió)
           // no sumó puntos ni tiempo extra que queramos agregar al score histórico.
-          const respuesta = await authService.registrarScoreFinal(usuarioId, 0, 0);
+          const respuesta = await authService.registrarScoreFinal(
+            usuarioId,
+            0,
+            0,
+          );
           console.log("Respuesta de ranking y reseteo (Restart):", respuesta);
         } catch (err) {
           console.error("Error al registrar score en GameOver (Restart):", err);
         }
       }
 
-      // 3. Mandamos al jugador al inicio fresco
-      this.scene.start("Level1"); 
+      // 3. LIMPIEZA DE INPUTS Y CAMBIO DE ESCENA SEGURO
+      this.input.keyboard.resetKeys(); // Resetea el estado de todas las teclas
+
+      // Apagamos esta escena primero y lanzamos el Level1 de forma limpia
+      this.scene.stop("GameOver");
+      this.scene.start("Level1");
     });
 
     btnRestart.on("pointerover", () => btnRestart.setTint(0xffcc00));
@@ -123,14 +131,16 @@ export default class GameOver extends Phaser.Scene {
       const h = gameSize.height;
       const bScale = h / 768;
       const esp = 120 * bScale;
-      const posY = h * 0.70;
+      const posY = h * 0.7;
 
       fondoOscuro.clear();
       fondoOscuro.fillStyle(0x000000, 0.8);
       fondoOscuro.fillRect(0, 0, w, h);
 
       imgGameOver.setPosition(w / 2, h * 0.28).setScale(0.35 * bScale);
-      txtMensaje.setPosition(w / 2, h * 0.52).setFontSize(`${Math.floor(22 * bScale)}px`);
+      txtMensaje
+        .setPosition(w / 2, h * 0.52)
+        .setFontSize(`${Math.floor(22 * bScale)}px`);
       btnRestart.setPosition(w / 2 - esp, posY).setScale(0.45 * bScale);
       btnExit.setPosition(w / 2 + esp, posY).setScale(0.45 * bScale);
     };
