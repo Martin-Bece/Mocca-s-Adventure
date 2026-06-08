@@ -28,7 +28,7 @@ export default class Level3 extends EscenaBase {
       frameWidth: 64,
       frameHeight: 64,
     });
-    this.load.image("ground", "./Assets/ground2.png");
+    this.load.image("ground2", "./Assets/ground2.png");
 
     // Plataformas nuevas para el nivel 3
     this.load.image("plat_corta", "./Assets/Plat_corta.png");
@@ -41,7 +41,7 @@ export default class Level3 extends EscenaBase {
     this.load.audio("obtener_vida", "./Audio/getLife.mp3");
     this.load.audio("mocca_daño", "./Audio/mocca_daño.mp3");
     this.load.audio("gato_daño", "./Audio/gato_daño.mp3");
-    this.load.audio("level_2", "./Audio/level_3.wav");
+    this.load.audio("level_3", "./Audio/level_3.wav");
     this.load.audio("mocca_jump", "./Audio/mocca_jump.wav");
     this.load.audio("auto_sound", "./Audio/auto_sound.mp3");
     this.load.audio("avion_sound", "./Audio/avion_sound.mp3");
@@ -66,7 +66,7 @@ export default class Level3 extends EscenaBase {
     const { width, height } = this.scale;
 
     // Inicialización del HUD, música de fondo y cursores del core
-    this.crearBaseComun("level_2");
+    this.crearBaseComun("level_3");
 
     // --- FONDO PARALLAX NIVEL 3 ---
     this.fondoParallax = this.add
@@ -82,10 +82,10 @@ export default class Level3 extends EscenaBase {
     this.fondoParallax.tileScaleY = factorEscalaFinal;
 
     // --- SUELO (ground2) ---
-    this.ground = this.physics.add.staticGroup();
+    this.ground2 = this.physics.add.staticGroup();
     for (let x = 0; x < this.longitudNivel; x += 128) {
-      let tile = this.ground
-        .create(x, height - 32, "ground")
+      let tile = this.ground2
+        .create(x, height - 32, "ground2")
         .setScale(2)
         .refreshBody();
       tile.body.setSize(128, 45);
@@ -315,8 +315,8 @@ export default class Level3 extends EscenaBase {
     this.cameras.main.setBounds(0, 0, this.longitudNivel, height);
 
     // --- CONFIGURACIÓN DE COLISIONES ---
-    this.physics.add.collider(this.mocca, this.ground);
-    this.physics.add.collider(this.enemigos, this.ground);
+    this.physics.add.collider(this.mocca, this.ground2);
+    this.physics.add.collider(this.enemigos, this.ground2);
     this.physics.add.collider(this.enemigos, this.platforms);
     this.physics.add.overlap(this.mocca, bones, this.collectBone, null, this);
     this.physics.add.overlap(

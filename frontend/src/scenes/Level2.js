@@ -28,17 +28,13 @@ export default class Level2 extends EscenaBase {
       frameWidth: 64,
       frameHeight: 64,
     });
-    this.load.spritesheet("mocca_run", "./Assets/Mocca_run_right.png", {
-      frameWidth: 64,
-      frameHeight: 64,
-    });
     this.load.image("ground", "./Assets/ground.png");
     this.load.image("park_platform", "./Assets/plataformaAire2.png");
 
     // Audios
     this.load.audio("bark_sound", "./Audio/bark_sound.mp3");
     this.load.audio("comer_hueso", "./Audio/comer_hueso.mp3");
-    this.load.audio("obtener_vida", "./Audio/getLife.mp3"); 
+    this.load.audio("obtener_vida", "./Audio/getLife.mp3");
     this.load.audio("mocca_daño", "./Audio/mocca_daño.mp3");
     this.load.audio("gato_daño", "./Audio/gato_daño.mp3");
     this.load.audio("level_2", "./Audio/level_2.ogg");
@@ -64,6 +60,16 @@ export default class Level2 extends EscenaBase {
     this.load.image("Mute", "./Assets/Botones/Mute.png");
     this.load.image("Unmute", "./Assets/Botones/Unmute.png");
     this.load.image("Pause", "./Assets/Botones/Resume.png");
+
+    this.load.spritesheet("Eagle_fly", "./Assets/Eagle_fly.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.spritesheet("Eagle_idle", "./Assets/Eagle_idle.png", {
+      frameWidth: 32,
+      frameHeight: 32,
+    });
+    this.load.image("mocca_ball", "./Assets/Mocca_ball.png");
   }
 
   create() {
@@ -105,7 +111,10 @@ export default class Level2 extends EscenaBase {
     if (!this.anims.exists("huesito_rotate")) {
       this.anims.create({
         key: "huesito_rotate",
-        frames: this.anims.generateFrameNumbers("huesito", { start: 0, end: 4 }),
+        frames: this.anims.generateFrameNumbers("huesito", {
+          start: 0,
+          end: 4,
+        }),
         frameRate: 7,
         repeat: -1,
       });
@@ -113,7 +122,10 @@ export default class Level2 extends EscenaBase {
     if (!this.anims.exists("ardilla_run")) {
       this.anims.create({
         key: "ardilla_run",
-        frames: this.anims.generateFrameNumbers("ardilla", { start: 0, end: 7 }),
+        frames: this.anims.generateFrameNumbers("ardilla", {
+          start: 0,
+          end: 7,
+        }),
         frameRate: 8,
         repeat: -1,
       });
@@ -137,33 +149,66 @@ export default class Level2 extends EscenaBase {
       });
       this.anims.create({
         key: "run",
-        frames: this.anims.generateFrameNumbers("mocca_run", { start: 0, end: 2 }),
+        frames: this.anims.generateFrameNumbers("mocca_run", {
+          start: 0,
+          end: 2,
+        }),
         frameRate: 7,
         repeat: -1,
       });
       this.anims.create({
         key: "jump",
-        frames: this.anims.generateFrameNumbers("mocca_jump", { start: 0, end: 3 }),
+        frames: this.anims.generateFrameNumbers("mocca_jump", {
+          start: 0,
+          end: 3,
+        }),
         frameRate: 2,
         repeat: 0,
       });
       this.anims.create({
         key: "bark_idle",
-        frames: this.anims.generateFrameNumbers("mocca_bark", { start: 0, end: 0 }),
+        frames: this.anims.generateFrameNumbers("mocca_bark", {
+          start: 0,
+          end: 0,
+        }),
         frameRate: 1,
         repeat: 0,
       });
       this.anims.create({
         key: "bark_run",
-        frames: this.anims.generateFrameNumbers("mocca_bark", { start: 1, end: 1 }),
+        frames: this.anims.generateFrameNumbers("mocca_bark", {
+          start: 1,
+          end: 1,
+        }),
         frameRate: 1,
         repeat: 0,
       });
       this.anims.create({
         key: "bark_jump",
-        frames: this.anims.generateFrameNumbers("mocca_bark", { start: 2, end: 2 }),
+        frames: this.anims.generateFrameNumbers("mocca_bark", {
+          start: 2,
+          end: 2,
+        }),
         frameRate: 1,
         repeat: 0,
+      });
+    }
+
+    // --- ANIMACIONES DEL ÁGUILA (CINEMÁTICA) ---
+    if (!this.anims.exists("eagle_idle")) {
+      this.anims.create({
+        key: "eagle_idle",
+        frames: this.anims.generateFrameNumbers("Eagle_idle", { start: 0, end: 0 }),
+        frameRate: 1,
+        repeat: -1,
+      });
+    }
+    if (!this.anims.exists("eagle_fly")) {
+      this.anims.create({
+        key: "eagle_fly",
+        frames: this.anims.generateFrameNumbers("Eagle_fly", { start: 0, end: 3 }),
+        frameRate: 8,
+        repeat: -1,
       });
     }
 
@@ -172,34 +217,34 @@ export default class Level2 extends EscenaBase {
     // ============================================================================
     const diseñoNivel = [
       { x: 500, y: height - 140, bloques: 3, ardilla: true },
-      { x: 725, y: height - 185, bloques: 1, ardilla: false }, // Puente intermedio
+      { x: 725, y: height - 185, bloques: 1, ardilla: false },
       { x: 950, y: height - 230, bloques: 1, ardilla: false },
       { x: 1300, y: height - 140, bloques: 4, ardilla: true },
-      { x: 1550, y: height - 230, bloques: 1, ardilla: false }, // Puente intermedio
+      { x: 1550, y: height - 230, bloques: 1, ardilla: false },
       { x: 1800, y: height - 320, bloques: 2, ardilla: false },
       { x: 2200, y: height - 230, bloques: 3, ardilla: true },
       { x: 2700, y: height - 140, bloques: 1, ardilla: false },
-      { x: 2900, y: height - 185, bloques: 1, ardilla: false }, // Puente intermedio
+      { x: 2900, y: height - 185, bloques: 1, ardilla: false },
       { x: 3100, y: height - 230, bloques: 4, ardilla: true },
-      { x: 3375, y: height - 275, bloques: 1, ardilla: false }, // Puente intermedio
+      { x: 3375, y: height - 275, bloques: 1, ardilla: false },
       { x: 3650, y: height - 320, bloques: 2, ardilla: false },
       { x: 4100, y: height - 140, bloques: 3, ardilla: true },
       { x: 4600, y: height - 230, bloques: 1, ardilla: false },
-      { x: 4800, y: height - 275, bloques: 1, ardilla: false }, // Puente intermedio
+      { x: 4800, y: height - 275, bloques: 1, ardilla: false },
       { x: 5000, y: height - 320, bloques: 4, ardilla: true },
       { x: 5600, y: height - 140, bloques: 2, ardilla: false },
-      { x: 5850, y: height - 185, bloques: 1, ardilla: false }, // Puente intermedio
+      { x: 5850, y: height - 185, bloques: 1, ardilla: false },
       { x: 6100, y: height - 230, bloques: 3, ardilla: true },
-      { x: 6350, y: height - 275, bloques: 1, ardilla: false }, // Puente intermedio
+      { x: 6350, y: height - 275, bloques: 1, ardilla: false },
       { x: 6600, y: height - 320, bloques: 1, ardilla: false },
       { x: 7000, y: height - 140, bloques: 4, ardilla: true },
       { x: 7600, y: height - 230, bloques: 2, ardilla: false },
-      { x: 7850, y: height - 275, bloques: 1, ardilla: false }, // Puente intermedio
+      { x: 7850, y: height - 275, bloques: 1, ardilla: false },
       { x: 8100, y: height - 320, bloques: 3, ardilla: true },
       { x: 8600, y: height - 140, bloques: 1, ardilla: false },
-      { x: 8800, y: height - 185, bloques: 1, ardilla: false }, // Puente intermedio
+      { x: 8800, y: height - 185, bloques: 1, ardilla: false },
       { x: 9000, y: height - 230, bloques: 4, ardilla: true },
-      { x: 9300, y: height - 275, bloques: 1, ardilla: false }, // Puente intermedio
+      { x: 9300, y: height - 275, bloques: 1, ardilla: false },
       { x: 9600, y: height - 320, bloques: 2, ardilla: false },
       { x: 10100, y: height - 140, bloques: 3, ardilla: true },
     ];
@@ -293,6 +338,18 @@ export default class Level2 extends EscenaBase {
     this.mocca.setCollideWorldBounds(true);
     this.mocca.anims.play("idle");
 
+    // --- ELEMENTOS DE LA CINEMÁTICA FINAL ---
+    let puntoFinalX = this.longitudNivel - 400;
+    this.eagle = this.physics.add
+      .sprite(puntoFinalX, height - 90, "Eagle_idle")
+      .setScale(2.5);
+    this.eagle.body.setAllowGravity(false);
+    this.eagle.anims.play("eagle_idle");
+
+    this.ball = this.add
+      .image(puntoFinalX, height - 70, "mocca_ball")
+      .setScale(1.2);
+
     // --- CÁMARAS ---
     this.cameras.main.startFollow(this.mocca, true, 0.05, 0.05);
     this.cameras.main.setBounds(0, 0, this.longitudNivel, height);
@@ -302,7 +359,13 @@ export default class Level2 extends EscenaBase {
     this.physics.add.collider(this.enemigos, this.ground);
     this.physics.add.collider(this.enemigos, this.platforms);
     this.physics.add.overlap(this.mocca, bones, this.collectBone, null, this);
-    this.physics.add.overlap(this.mocca, this.enemigos, this.hitEnemigo, null, this);
+    this.physics.add.overlap(
+      this.mocca,
+      this.enemigos,
+      this.hitEnemigo,
+      null,
+      this,
+    );
 
     this.physics.add.collider(
       this.mocca,
@@ -364,7 +427,7 @@ export default class Level2 extends EscenaBase {
     this.btnPausa.on("pointerdown", () => {
       this.scene.pause("Level2");
       this.scene.launch("PauseScene", { currentScene: "Level2" });
-      this.scene.bringToTop("PauseScene"); // Asegura que la escena de pausa esté por encima del nivel
+      this.scene.bringToTop("PauseScene");
     });
 
     [this.btnSonido, this.btnPausa].forEach((btn) => {
@@ -399,6 +462,74 @@ export default class Level2 extends EscenaBase {
     this.scale.on("resize", this.levelResizeHandler);
     this.events.on("shutdown", () => {
       this.scale.off("resize", this.levelResizeHandler);
+    });
+  }
+
+  // ============================================================================
+  // --- CONTROL DE LA CINEMÁTICA FINAL ---
+  // ============================================================================
+  iniciarCinematicaFinal() {
+    if (this.mocca && this.mocca.active) {
+      this.mocca.setVelocity(0);
+      this.mocca.anims.play("idle", true); 
+    }
+    
+    this.time.delayedCall(1500, () => {
+      let signExclamation = this.add.text(this.eagle.x, this.eagle.y - 50, "!", {
+        fontFamily: "Courier New, Arial",
+        fontSize: "42px",
+        fill: "#ff0000",
+        fontStyle: "bold",
+        stroke: "#000000",
+        strokeThickness: 5
+      }).setOrigin(0.5).setScale(0);
+
+      this.tweens.add({
+        targets: signExclamation,
+        scale: 1.2,
+        duration: 200,
+        ease: "Back.easeOut",
+        yoyo: true,
+        hold: 800, 
+        onComplete: () => {
+          signExclamation.destroy();
+
+          this.eagle.setFlipX(true);
+          this.eagle.play("eagle_fly");
+          this.ball.setPosition(this.eagle.x, this.eagle.y + 20);
+
+          this.tweens.add({
+            targets: this.eagle,
+            x: this.eagle.x + 900,
+            y: this.eagle.y - 350,
+            duration: 4500,
+            ease: "Quad.easeIn",
+            onUpdate: () => {
+              this.ball.x = this.eagle.x;
+              this.ball.y = this.eagle.y + 20;
+            }
+          });
+
+          this.time.delayedCall(800, () => {
+            if (this.mocca && this.mocca.active) {
+              this.mocca.anims.play("run", true);
+
+              this.tweens.add({
+                targets: this.mocca,
+                x: this.mocca.x + 700,
+                duration: 3500,
+                ease: "Linear",
+                onStart: () => {
+                  this.mocca.anims.play("run", true);
+                },
+                onComplete: () => {
+                  this.finalizarNivel();
+                }
+              });
+            }
+          });
+        }
+      });
     });
   }
 }

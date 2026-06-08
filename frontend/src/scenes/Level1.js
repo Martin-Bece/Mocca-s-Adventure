@@ -117,7 +117,6 @@ export default class Level1 extends EscenaBase {
         repeat: -1,
       });
     }
-
     if (!this.anims.exists("idle")) {
       this.anims.create({
         key: "idle",
@@ -205,7 +204,7 @@ export default class Level1 extends EscenaBase {
     }
 
     // ============================================================================
-    // --- MAPEO DE PLATAFORMAS NIVEL 1: 100% ESTÁTICO POR DISEÑO ---
+    // --- MAPEO DE PLATAFORMAS NIVEL 1 ---
     // ============================================================================
     const diseñoNivel = [
       { x: 400, y: height - 130, bloques: 1 },
@@ -329,6 +328,21 @@ export default class Level1 extends EscenaBase {
       }
     });
 
+    // ============================================================================
+    // --- PREGUNTA 2: ELEMENTOS DE LA CINEMÁTICA DESDE EL INICIO ---
+    // ============================================================================
+    // Colocamos al águila y la pelotita fijas al final del nivel esperando a Mocca
+    // Nota: Usamos la Y estimada del suelo (height - 85 aprox) para que quede bien parada
+    this.eagle = this.add
+      .sprite(this.posicionCinematica + 250, height - 85, "Eagle_idle")
+      .setScale(3)
+      .setOrigin(0.5, 0.5);
+    this.eagle.play("eagle_idle");
+
+    this.ball = this.add
+      .image(this.eagle.x - 30, this.eagle.y + 20, "mocca_ball")
+      .setScale(1.5);
+
     // Botones UI
     const factorUI = height / 768;
     const escalaBotonesUI = 0.25 * factorUI;
@@ -336,7 +350,6 @@ export default class Level1 extends EscenaBase {
     const margenSuperior = 45 * factorUI;
     const espacioEntreBotones = 65 * factorUI;
 
-    // --- CORREGIDO: "margenSuperior" en vez de "marginSuperior" ---
     this.btnSonido = this.add
       .image(
         width - margenDerecho,
@@ -394,50 +407,85 @@ export default class Level1 extends EscenaBase {
     });
   }
 
+  // ============================================================================
+  // --- CONTROL DE LA CINEMÁTICA FINAL (SOLUCIÓN DEFINITIVA DE CONTROL) ---
+  // ============================================================================
   iniciarCinematicaFinal() {
-    let eagle = this.physics.add
-      .sprite(this.mocca.x + 300, this.mocca.y - 150, "Eagle_fly")
-      .setScale(3);
+    // 1. Mocca frena. Como la EscenaBase puso 'this.isPaused = true', el update no molestará.
+    if (this.mocca && this.mocca.active) {
+      this.mocca.setVelocity(0);
+      this.mocca.anims.play("idle", true);
+    }
 
-    eagle.body.allowGravity = false;
+    // Pausa dramática de 1.5 segundos para que se miren antes del susto
+    this.time.delayedCall(1500, () => {
+      // Aparece el signo de exclamación (!) rojo arriba del águila
+      let signExclamation = this.add
+        .text(this.eagle.x, this.eagle.y - 50, "!", {
+          fontFamily: "Courier New, Arial",
+          fontSize: "42px",
+          fill: "#ff0000",
+          fontStyle: "bold",
+          stroke: "#000000",
+          strokeThickness: 5,
+        })
+        .setOrigin(0.5)
+        .setScale(0);
 
-    eagle.play("eagle_fly");
+      // Animación pop del signo !
+      this.tweens.add({
+        targets: signExclamation,
+        scale: 1.2,
+        duration: 200,
+        ease: "Back.easeOut",
+        yoyo: true,
+        hold: 800,
+        onComplete: () => {
+          signExclamation.destroy(); // Borramos el !
 
-    this.tweens.add({
-      targets: eagle,
-      x: this.mocca.x + 60,
-      y: this.mocca.y - 40,
-      duration: 2500,
-      ease: "Sine.easeInOut",
+          // El águila se asusta, se da vuelta y vuela
+          this.eagle.setFlipX(true);
+          this.eagle.play("eagle_fly");
+          this.ball.setPosition(this.eagle.x, this.eagle.y + 20);
 
-      onComplete: () => {
-        this.capturarMocca(eagle);
-      },
-    });
-  }
+          // El águila escapa hacia arriba a la derecha
+          this.tweens.add({
+            targets: this.eagle,
+            x: this.eagle.x + 900,
+            y: this.eagle.y - 350,
+            duration: 4500,
+            ease: "Quad.easeIn",
+            onUpdate: () => {
+              this.ball.x = this.eagle.x;
+              this.ball.y = this.eagle.y + 20;
+            },
+          });
 
-  capturarMocca(eagle) {
-    this.mocca.setVisible(false);
+          // Mocca reacciona 800ms después y sale corriendo detrás
+          this.time.delayedCall(800, () => {
+            if (this.mocca && this.mocca.active) {
+              // IMPORTANTE: Mantenemos 'this.isPaused = true' para bloquear el update base.
+              // Forzamos manualmente la animación de correr justo antes del tween.
+              this.mocca.anims.play("run", true);
 
-    let ball = this.add
-      .image(eagle.x, eagle.y + 40, "mocca_ball")
-      .setScale(1.5);
-
-    this.tweens.add({
-      targets: [eagle, ball],
-      y: "-=500",
-      x: "+=400",
-      duration: 4000,
-      ease: "Sine.easeIn",
-
-      onUpdate: () => {
-        ball.x = eagle.x;
-        ball.y = eagle.y + 40;
-      },
-
-      onComplete: () => {
-        this.finalizarNivel();
-      },
+              // Mocca corre detrás de ella siguiendo el Tween de forma fluida
+              this.tweens.add({
+                targets: this.mocca,
+                x: this.mocca.x + 700,
+                duration: 3500,
+                ease: "Linear",
+                onStart: () => {
+                  // Reaseguro: por si acaso, volvemos a llamar a la animación al iniciar el movimiento
+                  this.mocca.anims.play("run", true);
+                },
+                onComplete: () => {
+                  this.finalizarNivel();
+                },
+              });
+            }
+          });
+        },
+      });
     });
   }
 }
