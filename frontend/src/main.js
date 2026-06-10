@@ -1,3 +1,4 @@
+import IntroScene from "./scenes/intro.js";
 import LoginScene from "./scenes/LoginScene.js";
 import MenuScene from "./scenes/MenuScene.js";
 import Level1 from "./scenes/Level1.js";
@@ -34,6 +35,7 @@ const config = {
     },
   },
   scene: [
+    IntroScene,
     LoginScene,
     MenuScene,
     Level1,
